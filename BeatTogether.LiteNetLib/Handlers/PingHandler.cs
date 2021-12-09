@@ -1,0 +1,30 @@
+﻿using BeatTogether.LiteNetLib.Abstractions;
+using BeatTogether.LiteNetLib.Headers;
+using Krypton.Buffers;
+using System;
+using System.Net;
+using System.Threading.Tasks;
+
+namespace BeatTogether.LiteNetLib.Handlers
+{
+    public class PingHandler : IPacketHandler<PingHeader>
+    {
+        private readonly LiteNetServer _server;
+
+        public PingHandler(
+            LiteNetServer server)
+        {
+            _server = server;
+        }
+
+        public Task Handle(IPEndPoint endPoint, PingHeader packet, ref SpanBufferReader reader)
+        {
+            _server.SendRaw(endPoint, new PongHeader
+            {
+                Sequence = packet.Sequence, // TODO: weird sequencing shit
+                Time = DateTime.UtcNow.Ticks
+            });
+            return Task.CompletedTask;
+        }
+    }
+}
