@@ -1,3 +1,4 @@
+using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Extensions;
 using BeatTogether.LiteNetLib.Tests.Utilities;
@@ -37,6 +38,7 @@ namespace BeatTogether.LiteNetLib.Tests
                 .AddLogging(builder => builder.AddDebug())
                 .AddSingleton<LiteNetConfiguration>()
                 .AddSingleton<ListenerService>()
+                .AddSingleton<ILiteNetListener, ListenerService>(x => x.GetRequiredService<ListenerService>())
                 .AddSingleton<TesterServer>()
                 .AddHostedService(x => x.GetRequiredService<TesterServer>())
                 .AddSingleton<LiteNetServer, TesterServer>(x => x.GetRequiredService<TesterServer>())
