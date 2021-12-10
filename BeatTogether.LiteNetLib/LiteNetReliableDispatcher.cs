@@ -17,7 +17,7 @@ namespace BeatTogether.LiteNetLib
         /// </summary>
         public const int ChannelsPerDeliveryMethod = 4;
 
-        private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, Window>> _channelWindows = new();
+        private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, WindowQueue>> _channelWindows = new();
         private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetServer _server;
 
@@ -36,7 +36,7 @@ namespace BeatTogether.LiteNetLib
         {
             if (_channelWindows.TryGetValue(endPoint, out var channels))
                 if (channels.TryGetValue(channelId, out var window))
-                    window.CompleteIndex(sequenceId);
+                    window.Dequeue(sequenceId);
         }
 
         public Task Send(EndPoint endPoint, INetSerializable message, DeliveryMethod deliveryMethod = DeliveryMethod.ReliableOrdered)
@@ -50,17 +50,17 @@ namespace BeatTogether.LiteNetLib
         {
             var window = _channelWindows.GetOrAdd(endPoint, _ => new())
                 .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
-            await window.WaitForNext(out int sequence);
-            await SendAndRetry(endPoint, window, message, channelId, sequence);
+            await window.Enqueue(out int queueIndex);
+            await SendAndRetry(endPoint, window, message, channelId, queueIndex);
         }
 
-        private async Task SendAndRetry(EndPoint endPoint, Window window, INetSerializable message, byte channelId, int sequence)
+        private async Task SendAndRetry(EndPoint endPoint, WindowQueue window, INetSerializable message, byte channelId, int queueIndex)
         {
             var retryCount = 0;
             while (_configuration.MaximumReliableRetries >= 0 ? retryCount++ < _configuration.MaximumReliableRetries : true) 
             {
-                var acknowledgementTask = window.WaitForCompletion(sequence);
-                SendInternal(endPoint, message, channelId, sequence);
+                var acknowledgementTask = window.WaitForDequeue(queueIndex);
+                SendInternal(endPoint, message, channelId, queueIndex);
                 await Task.WhenAny(
                     acknowledgementTask,
                     Task.Delay(_configuration.ReliableRetryDelay)
