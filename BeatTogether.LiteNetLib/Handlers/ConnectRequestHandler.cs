@@ -1,6 +1,7 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Headers;
 using Krypton.Buffers;
+using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -12,19 +13,24 @@ namespace BeatTogether.LiteNetLib.Handlers
 
         private readonly LiteNetServer _server;
         private readonly ILiteNetListener _listener;
+        private readonly ILogger _logger;
 
         public ConnectRequestHandler(
             LiteNetServer server,
-            ILiteNetListener listener)
+            ILiteNetListener listener,
+            ILogger<ConnectRequestHandler> logger)
         {
             _server = server;
             _listener = listener;
+            _logger = logger;
         }
 
         public override Task Handle(EndPoint endPoint, ConnectRequestHeader packet, ref SpanBufferReader reader)
         {
+            _logger.LogDebug($"Received connection request from {endPoint}");
             if (packet.ProtocolId != ProtocolId)
             {
+                _logger.LogWarning($"Invalid protocol from '{endPoint}'. (ProtocolId={packet.ProtocolId} Expected={ProtocolId})");
                 _server.SendRaw(endPoint, new InvalidProtocolHeader());
                 return Task.CompletedTask;
             }
@@ -33,6 +39,7 @@ namespace BeatTogether.LiteNetLib.Handlers
 
             if (_listener.ShouldAcceptConnectionRequest(endPoint, ref reader))
             {
+                _logger.LogTrace($"Accepting request from {endPoint}");
                 _server.SendRaw(endPoint, new ConnectAcceptHeader
                 {
                     ConnectTime = packet.ConnectionTime,
@@ -42,6 +49,7 @@ namespace BeatTogether.LiteNetLib.Handlers
                 _listener.OnPeerConnected(endPoint);
                 return Task.CompletedTask;
             }
+            _logger.LogTrace($"Rejecting request from {endPoint}");
             _server.SendRaw(endPoint, new DisconnectHeader
             {
                 ConnectTime = packet.ConnectionTime

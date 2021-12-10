@@ -35,7 +35,11 @@ namespace BeatTogether.LiteNetLib.Tests
 
             var serviceCollection = new ServiceCollection();
             serviceCollection
-                .AddLogging(builder => builder.AddDebug())
+                .AddLogging(builder => 
+                    builder
+                        .AddDebug()
+                        .SetMinimumLevel(LogLevel.Trace)
+                    )
                 .AddSingleton<LiteNetConfiguration>()
                 .AddSingleton<ListenerService>()
                 .AddSingleton<ILiteNetListener, ListenerService>(x => x.GetRequiredService<ListenerService>())
