@@ -1,4 +1,4 @@
-using BeatTogether.LiteNetLib.Abstractions;
+﻿using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Enums;
 using Krypton.Buffers;
 using System.Runtime.Serialization;
@@ -15,7 +15,7 @@ namespace BeatTogether.LiteNetLib
             _packetRegistry = packetRegistry;
         }
 
-        public INetSerializable ReadFrom(ref SpanBufferReader reader)
+        public virtual INetSerializable ReadFrom(ref SpanBufferReader reader)
         {
             byte b = reader.RemainingData[0];
             PacketProperty property = (PacketProperty)(b & 0x1f);   // 0x1f 00011111
