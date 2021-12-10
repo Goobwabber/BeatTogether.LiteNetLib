@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Handlers
 {
-    public class MtuCheckPacketHandler : IPacketHandler<MtuCheckHeader>
+    public class MtuCheckPacketHandler : BasePacketHandler<MtuCheckHeader>
     {
         private readonly LiteNetServer _server;
 
@@ -16,7 +16,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             _server = server;
         }
 
-        public Task Handle(IPEndPoint endPoint, MtuCheckHeader packet, ref SpanBufferReader reader)
+        public override Task Handle(EndPoint endPoint, MtuCheckHeader packet, ref SpanBufferReader reader)
         {
             // Normally would check mtu - dont care lol, send back 'ok'
             _server.SendRaw(endPoint, new MtuOkHeader

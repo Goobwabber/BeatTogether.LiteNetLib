@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Handlers
 {
-    public class AckPacketHandler : IPacketHandler<AckHeader>
+    public class AckPacketHandler : BasePacketHandler<AckHeader>
     {
-        public Task Handle(IPEndPoint endPoint, AckHeader packet, ref SpanBufferReader reader)
+        public override Task Handle(EndPoint endPoint, AckHeader packet, ref SpanBufferReader reader)
         {
             throw new NotImplementedException(); // TODO
         }

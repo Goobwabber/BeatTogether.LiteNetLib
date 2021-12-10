@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Handlers
 {
-    public class DisconnectPacketHandler : IPacketHandler<DisconnectHeader>
+    public class DisconnectPacketHandler : BasePacketHandler<DisconnectHeader>
     {
         private readonly LiteNetServer _server;
 
@@ -16,7 +16,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             _server = server;
         }
 
-        public Task Handle(IPEndPoint endPoint, DisconnectHeader packet, ref SpanBufferReader reader)
+        public override Task Handle(EndPoint endPoint, DisconnectHeader packet, ref SpanBufferReader reader)
         {
             _server.SendRaw(endPoint, new ShutdownOkHeader());
             return Task.CompletedTask;

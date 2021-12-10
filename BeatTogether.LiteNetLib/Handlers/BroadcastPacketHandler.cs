@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Handlers
 {
-    public class BroadcastPacketHandler : IPacketHandler<BroadcastHeader>
+    public class BroadcastPacketHandler : BasePacketHandler<BroadcastHeader>
     {
         private readonly ILiteNetListener _listener;
 
@@ -17,7 +17,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             _listener = listener;
         }
 
-        public Task Handle(IPEndPoint endPoint, BroadcastHeader packet, ref SpanBufferReader reader)
+        public override Task Handle(EndPoint endPoint, BroadcastHeader packet, ref SpanBufferReader reader)
         {
             _listener.OnNetworkReceiveUnconnected(endPoint, ref reader, UnconnectedMessageType.Broadcast);
             return Task.CompletedTask;

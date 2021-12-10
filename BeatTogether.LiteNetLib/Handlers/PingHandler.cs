@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Handlers
 {
-    public class PingHandler : IPacketHandler<PingHeader>
+    public class PingHandler : BasePacketHandler<PingHeader>
     {
         private readonly LiteNetServer _server;
 
@@ -17,7 +17,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             _server = server;
         }
 
-        public Task Handle(IPEndPoint endPoint, PingHeader packet, ref SpanBufferReader reader)
+        public override Task Handle(EndPoint endPoint, PingHeader packet, ref SpanBufferReader reader)
         {
             _server.SendRaw(endPoint, new PongHeader
             {

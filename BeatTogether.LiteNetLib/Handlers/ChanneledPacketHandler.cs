@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Handlers
 {
-    public class ChanneledPacketHandler : IPacketHandler<ChanneledHeader>
+    public class ChanneledPacketHandler : BasePacketHandler<ChanneledHeader>
     {
         private readonly LiteNetConfiguration _configuration;
 
@@ -18,7 +18,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             _configuration = configuration;
         }
 
-        public Task Handle(IPEndPoint endPoint, ChanneledHeader packet, ref SpanBufferReader reader)
+        public override Task Handle(EndPoint endPoint, ChanneledHeader packet, ref SpanBufferReader reader)
         {
             if (packet.Sequence > _configuration.MaxSequence)
                 return Task.CompletedTask; // 'Bad sequence'

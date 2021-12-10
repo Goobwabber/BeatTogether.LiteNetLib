@@ -4,8 +4,13 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Abstractions
 {
-    public interface IPacketHandler<TSendable> where TSendable : INetSerializable
+    public interface IPacketHandler
     {
-        public Task Handle(IPEndPoint endPoint, TSendable packet, ref SpanBufferReader reader);
+        public Task Handle(EndPoint endPoint, INetSerializable packet, ref SpanBufferReader reader);
+    }
+
+    public interface IPacketHandler<TNetSerializable> : IPacketHandler where TNetSerializable : class, INetSerializable
+    {
+        public Task Handle(EndPoint endPoint, TNetSerializable packet, ref SpanBufferReader reader);
     }
 }

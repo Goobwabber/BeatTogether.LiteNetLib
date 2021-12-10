@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Handlers
 {
-    public class ConnectRequestHandler : IPacketHandler<ConnectRequestHeader>
+    public class ConnectRequestHandler : BasePacketHandler<ConnectRequestHeader>
     {
         public const int ProtocolId = 11;
 
@@ -21,7 +21,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             _listener = listener;
         }
 
-        public Task Handle(IPEndPoint endPoint, ConnectRequestHeader packet, ref SpanBufferReader reader)
+        public override Task Handle(EndPoint endPoint, ConnectRequestHeader packet, ref SpanBufferReader reader)
         {
             if (packet.ProtocolId != ProtocolId)
             {

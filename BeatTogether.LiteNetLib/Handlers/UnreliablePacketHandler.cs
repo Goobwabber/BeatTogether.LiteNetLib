@@ -7,7 +7,7 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Handlers
 {
-    public class UnreliablePacketHandler : IPacketHandler<UnreliableHeader>
+    public class UnreliablePacketHandler : BasePacketHandler<UnreliableHeader>
     {
         private readonly ILiteNetListener _listener;
 
@@ -17,7 +17,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             _listener = listener;
         }
 
-        public Task Handle(IPEndPoint endPoint, UnreliableHeader packet, ref SpanBufferReader reader)
+        public override Task Handle(EndPoint endPoint, UnreliableHeader packet, ref SpanBufferReader reader)
         {
             _listener.OnNetworkReceive(endPoint, ref reader, DeliveryMethod.Unreliable);
             return Task.CompletedTask;

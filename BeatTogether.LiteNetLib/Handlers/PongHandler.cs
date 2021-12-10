@@ -7,9 +7,9 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Handlers
 {
-    public class PongHandler : IPacketHandler<PongHeader>
+    public class PongHandler : BasePacketHandler<PongHeader>
     {
-        public Task Handle(IPEndPoint endPoint, PongHeader packet, ref SpanBufferReader reader)
+        public override Task Handle(EndPoint endPoint, PongHeader packet, ref SpanBufferReader reader)
         {
             throw new NotImplementedException(); // TODO
         }
