@@ -18,7 +18,7 @@ namespace BeatTogether.LiteNetLib.Handlers
 
         public override Task Handle(EndPoint endPoint, DisconnectHeader packet, ref SpanBufferReader reader)
         {
-            _server.SendRaw(endPoint, new ShutdownOkHeader());
+            _server.SendAsync(endPoint, new ShutdownOkHeader());
             return Task.CompletedTask;
         }
     }

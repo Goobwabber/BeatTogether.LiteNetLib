@@ -1,9 +1,11 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Configuration;
+using BeatTogether.LiteNetLib.Delegates;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Models;
 using Krypton.Buffers;
+using System;
 using System.Collections.Concurrent;
 using System.Net;
 using System.Threading.Tasks;
@@ -15,18 +17,17 @@ namespace BeatTogether.LiteNetLib
         /// <summary>
         /// Number of channels there are for each delivery method
         /// </summary>
-        public const int ChannelsPerDeliveryMethod = 4;
+        public const int ChannelsPerMethod = 4;
+
+        public event PacketDispatchHandler DispatchEvent;
 
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, WindowQueue>> _channelWindows = new();
         private readonly LiteNetConfiguration _configuration;
-        private readonly LiteNetServer _server;
 
         public LiteNetReliableDispatcher(
-            LiteNetConfiguration configuration,
-            LiteNetServer server)
+            LiteNetConfiguration configuration)
         {
             _configuration = configuration;
-            _server = server;
         }
 
         public void Cleanup(EndPoint endPoint)
@@ -39,28 +40,24 @@ namespace BeatTogether.LiteNetLib
                     window.Dequeue(sequenceId);
         }
 
-        public Task Send(EndPoint endPoint, INetSerializable message, DeliveryMethod deliveryMethod = DeliveryMethod.ReliableOrdered)
-        {
-            if (deliveryMethod == DeliveryMethod.Unreliable || deliveryMethod == DeliveryMethod.Sequenced)
-                throw new System.Exception();
-            return Send(endPoint, message, (byte)((int)deliveryMethod * ChannelsPerDeliveryMethod));
-        }
-
-        public async Task Send(EndPoint endPoint, INetSerializable message, byte channelId)
+        public async void Send(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId = (int)DeliveryMethod.ReliableOrdered * ChannelsPerMethod)
         {
             var window = _channelWindows.GetOrAdd(endPoint, _ => new())
                 .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
             await window.Enqueue(out int queueIndex);
-            await SendAndRetry(endPoint, window, message, channelId, queueIndex);
+            await SendAndRetry(endPoint, message, channelId, queueIndex);
         }
 
-        private async Task SendAndRetry(EndPoint endPoint, WindowQueue window, INetSerializable message, byte channelId, int queueIndex)
+        protected async Task SendAndRetry(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int queueIndex)
         {
             var retryCount = 0;
             while (_configuration.MaximumReliableRetries >= 0 ? retryCount++ < _configuration.MaximumReliableRetries : true) 
             {
+                if (!_channelWindows.TryGetValue(endPoint, out var channels) || !channels.TryGetValue(channelId, out var window))
+                    return; // Channel destroyed, stop sending
+
                 var acknowledgementTask = window.WaitForDequeue(queueIndex);
-                SendInternal(endPoint, message, channelId, queueIndex);
+                Send(endPoint, message, channelId, queueIndex);
                 await Task.WhenAny(
                     acknowledgementTask,
                     Task.Delay(_configuration.ReliableRetryDelay)
@@ -71,7 +68,7 @@ namespace BeatTogether.LiteNetLib
             }
         }
 
-        private void SendInternal(EndPoint endPoint, INetSerializable message, byte channelId, int sequence)
+        protected void Send(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int sequence)
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             new ChanneledHeader
@@ -79,8 +76,8 @@ namespace BeatTogether.LiteNetLib
                 ChannelId = channelId,
                 Sequence = (ushort)sequence
             }.WriteTo(ref bufferWriter);
-            message.WriteTo(ref bufferWriter);
-            _server.SendAsync(endPoint, bufferWriter);
+            bufferWriter.WriteBytes(message.Span);
+            DispatchEvent?.Invoke(endPoint, bufferWriter.Data);
         }
     }
 }

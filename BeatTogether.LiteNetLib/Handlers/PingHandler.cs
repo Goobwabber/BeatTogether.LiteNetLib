@@ -19,7 +19,7 @@ namespace BeatTogether.LiteNetLib.Handlers
 
         public override Task Handle(EndPoint endPoint, PingHeader packet, ref SpanBufferReader reader)
         {
-            _server.SendRaw(endPoint, new PongHeader
+            _server.SendAsync(endPoint, new PongHeader
             {
                 Sequence = packet.Sequence, // TODO: weird sequencing shit
                 Time = DateTime.UtcNow.Ticks

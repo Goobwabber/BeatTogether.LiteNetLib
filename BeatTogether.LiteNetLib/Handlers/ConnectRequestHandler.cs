@@ -31,7 +31,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             if (packet.ProtocolId != ProtocolId)
             {
                 _logger.LogWarning($"Invalid protocol from '{endPoint}'. (ProtocolId={packet.ProtocolId} Expected={ProtocolId})");
-                _server.SendRaw(endPoint, new InvalidProtocolHeader());
+                _server.SendAsync(endPoint, new InvalidProtocolHeader());
                 return Task.CompletedTask;
             }
 
@@ -40,7 +40,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             if (_listener.ShouldAcceptConnectionRequest(endPoint, ref reader))
             {
                 _logger.LogTrace($"Accepting request from {endPoint}");
-                _server.SendRaw(endPoint, new ConnectAcceptHeader
+                _server.SendAsync(endPoint, new ConnectAcceptHeader
                 {
                     ConnectTime = packet.ConnectionTime,
                     RequestConnectionNumber = packet.ConnectionNumber,
@@ -50,7 +50,7 @@ namespace BeatTogether.LiteNetLib.Handlers
                 return Task.CompletedTask;
             }
             _logger.LogTrace($"Rejecting request from {endPoint}");
-            _server.SendRaw(endPoint, new DisconnectHeader
+            _server.SendAsync(endPoint, new DisconnectHeader
             {
                 ConnectTime = packet.ConnectionTime
             });

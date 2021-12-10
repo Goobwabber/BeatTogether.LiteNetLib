@@ -19,7 +19,7 @@ namespace BeatTogether.LiteNetLib.Handlers
         public override Task Handle(EndPoint endPoint, MtuCheckHeader packet, ref SpanBufferReader reader)
         {
             // Normally would check mtu - dont care lol, send back 'ok'
-            _server.SendRaw(endPoint, new MtuOkHeader
+            _server.SendAsync(endPoint, new MtuOkHeader
             {
                 Mtu = packet.Mtu,
                 PadSize = packet.PadSize,

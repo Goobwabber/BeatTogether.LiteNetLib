@@ -1,4 +1,5 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
+using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using Krypton.Buffers;
 using NetCoreServer;
@@ -9,37 +10,26 @@ namespace BeatTogether.LiteNetLib
 {
     public class LiteNetServer : UdpServer
     {
+        private readonly LiteNetReliableDispatcher _reliableDispatcher;
         private readonly LiteNetPacketReader _packetReader;
         private readonly IServiceProvider _serviceProvider;
 
         public LiteNetServer(
+            IPEndPoint endPoint,
+            LiteNetReliableDispatcher reliableDispatcher,
             LiteNetPacketReader packetReader,
-            IServiceProvider serviceProvider,
-            IPEndPoint endPoint) 
+            IServiceProvider serviceProvider) 
             : base(endPoint)
         {
+            _reliableDispatcher = reliableDispatcher;
             _packetReader = packetReader;
             _serviceProvider = serviceProvider;
+
+            _reliableDispatcher.DispatchEvent += (endPoint, buffer)
+                => SendAsync(endPoint, buffer);
         }
 
-        public void SendRaw(EndPoint endPoint, INetSerializable packet)
-        {
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
-            // TODO: Add encryption
-            packet.WriteTo(ref bufferWriter);
-            SendAsync(endPoint, bufferWriter.Data);
-        }
-
-        public void SendUnreliable(EndPoint endPoint, INetSerializable message)
-        {
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
-            // TODO: Add encryption
-            new UnreliableHeader().WriteTo(ref bufferWriter); // Write unreliable header
-            message.WriteTo(ref bufferWriter); // Write packet
-            SendAsync(endPoint, bufferWriter); // Send data
-        }
-
-        protected override void OnStarted() 
+        protected override void OnStarted()
             => ReceiveAsync();
 
         protected override void OnReceived(EndPoint endPoint, ReadOnlySpan<byte> buffer)
@@ -47,7 +37,6 @@ namespace BeatTogether.LiteNetLib
             if (buffer.Length > 0)
             {
                 var bufferReader = new SpanBufferReader(buffer);
-                // TODO: Add encryption
                 INetSerializable packet = _packetReader.ReadFrom(ref bufferReader);
                 var packetHandlerType = typeof(IPacketHandler<>)
                         .MakeGenericType(packet.GetType());
@@ -57,6 +46,37 @@ namespace BeatTogether.LiteNetLib
                 ((IPacketHandler)packetHandler).Handle(endPoint, packet, ref bufferReader);
             }
             ReceiveAsync();
+        }
+
+        public void Send(EndPoint endPoint, ReadOnlySpan<byte> message, DeliveryMethod method = DeliveryMethod.ReliableOrdered)
+        {
+            var memory = new ReadOnlyMemory<byte>(message.ToArray());
+            if (method != DeliveryMethod.ReliableOrdered)
+                throw new NotImplementedException();
+            _reliableDispatcher.Send(endPoint, memory);
+        }
+
+        public void SendUnreliable(EndPoint endPoint, ReadOnlySpan<byte> message)
+        {
+            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
+            new UnreliableHeader().WriteTo(ref bufferWriter);
+            bufferWriter.WriteBytes(message);
+            SendAsync(endPoint, bufferWriter);
+        }
+
+        public void SendUnconnected(EndPoint endPoint, ReadOnlySpan<byte> message)
+        {
+            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
+            new UnconnectedHeader().WriteTo(ref bufferWriter);
+            bufferWriter.WriteBytes(message);
+            SendAsync(endPoint, bufferWriter);
+        }
+
+        public void SendAsync(EndPoint endPoint, INetSerializable packet)
+        {
+            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
+            packet.WriteTo(ref bufferWriter);
+            SendAsync(endPoint, bufferWriter.Data);
         }
     }
 }

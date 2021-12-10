@@ -19,12 +19,10 @@ namespace BeatTogether.LiteNetLib.Tests
         private EventBasedNetListener _clientNetListener;
 
         private ServiceProvider _serviceProvider;
-        private TesterServer _server;
-        private LiteNetReliableDispatcher _serverReliableDispatcher;
+        private TestServer _server;
         private ListenerService _serverListener;
 
         public const int TestTimeout = 4000;
-        public const int DefaultPort = 9050;
 
         [SetUp]
         public void Init()
@@ -35,7 +33,7 @@ namespace BeatTogether.LiteNetLib.Tests
 
             var serviceCollection = new ServiceCollection();
             serviceCollection
-                .AddLogging(builder => 
+                .AddLogging(builder =>
                     builder
                         .AddDebug()
                         .SetMinimumLevel(LogLevel.Trace)
@@ -43,16 +41,15 @@ namespace BeatTogether.LiteNetLib.Tests
                 .AddSingleton<LiteNetConfiguration>()
                 .AddSingleton<ListenerService>()
                 .AddSingleton<ILiteNetListener, ListenerService>(x => x.GetRequiredService<ListenerService>())
-                .AddSingleton<TesterServer>()
-                .AddHostedService(x => x.GetRequiredService<TesterServer>())
-                .AddSingleton<LiteNetServer, TesterServer>(x => x.GetRequiredService<TesterServer>())
+                .AddSingleton<TestServer>()
+                .AddHostedService(x => x.GetRequiredService<TestServer>())
+                .AddSingleton<LiteNetServer, TestServer>(x => x.GetRequiredService<TestServer>())
                 .AddSingleton<LiteNetReliableDispatcher>()
                 .AddSingleton<LiteNetPacketReader, DebugReader>()
                 .AddLiteNetMessaging();
 
             _serviceProvider = serviceCollection.BuildServiceProvider();
-            _server = _serviceProvider.GetService<TesterServer>();
-            _serverReliableDispatcher = _serviceProvider.GetService<LiteNetReliableDispatcher>();
+            _server = _serviceProvider.GetService<TestServer>();
             _serverListener = _serviceProvider.GetService<ListenerService>();
 
             _server.StartAsync(CancellationToken.None);
@@ -70,7 +67,7 @@ namespace BeatTogether.LiteNetLib.Tests
         [Test, Timeout(TestTimeout)]
         public void ConnectionByIpV4()
         {
-            _clientNetManager.Connect("127.0.0.1", DefaultPort, "");
+            _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
 
             while (_clientNetManager.ConnectedPeersCount != 1)
             {
@@ -113,7 +110,7 @@ namespace BeatTogether.LiteNetLib.Tests
                 msgReceived = true;
             };
 
-            _clientNetManager.Connect("127.0.0.1", DefaultPort, "");
+            _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
 
             while (_clientNetManager.ConnectedPeersCount != 1 || !msgDelivered || !msgReceived)
             {
@@ -132,7 +129,7 @@ namespace BeatTogether.LiteNetLib.Tests
             _clientNetListener.PeerDisconnectedEvent += (peer, info) => { clientDisconnected = true; };
             _serverListener.DisconnectedEvent += (endPoint, reason, data) => { serverDisconnected = true; };
 
-            _clientNetManager.Connect("127.0.0.1", DefaultPort, "");
+            _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
             while (_clientNetManager.ConnectedPeersCount != 1)
             {
                 Thread.Sleep(15);
@@ -170,7 +167,7 @@ namespace BeatTogether.LiteNetLib.Tests
                 serverDisconnected = true;
             };
 
-            NetPeer serverPeer = _clientNetManager.Connect("127.0.0.1", DefaultPort, "");
+            NetPeer serverPeer = _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
             while (_clientNetManager.ConnectedPeersCount != 1)
             {
                 Thread.Sleep(15);

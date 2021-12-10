@@ -7,15 +7,18 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Tests.Utilities
 {
-    public class TesterServer : LiteNetServer, IHostedService
+    public class TestServer : LiteNetServer, IHostedService
     {
+        public const int Port = 9050;
+
         private readonly ILogger _logger;
 
-        public TesterServer(
+        public TestServer(
+            LiteNetReliableDispatcher reliableDispatcher,
             LiteNetPacketReader packetReader, 
             IServiceProvider serviceProvider,
-            ILogger<TesterServer> logger) 
-            : base(packetReader, serviceProvider, new IPEndPoint(IPAddress.Parse("127.0.0.1"), CommunicationTest.DefaultPort))
+            ILogger<TestServer> logger) 
+            : base(new IPEndPoint(IPAddress.Loopback, Port), reliableDispatcher, packetReader, serviceProvider)
         {
             _logger = logger;
         }

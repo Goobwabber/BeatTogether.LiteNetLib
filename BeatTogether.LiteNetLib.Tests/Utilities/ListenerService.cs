@@ -15,14 +15,11 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
         public event Action<EndPoint, DisconnectReason, byte[]> DisconnectedEvent;
 
         private readonly ILogger _logger;
-        private readonly LiteNetReliableDispatcher _reliableDispatcher;
 
         public ListenerService(
-            ILogger<ListenerService> logger,
-            LiteNetReliableDispatcher reliableDispatcher)
+            ILogger<ListenerService> logger)
         {
-            _logger = logger;
-            _reliableDispatcher = reliableDispatcher;
+            _logger = logger;;
         }
 
         public void OnNetworkError(EndPoint endPoint, Exception ex)

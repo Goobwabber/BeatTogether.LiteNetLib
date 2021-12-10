@@ -22,7 +22,7 @@ namespace BeatTogether.LiteNetLib.Headers.Abstractions
         {
             byte b = (byte)Property;
             b |= (byte)(ConnectionNumber << 5);
-            b |= IsFragmented ? 0x80 : 0x00;
+            b |= (byte)(IsFragmented ? 0x80 : 0x00);
             bufferWriter.WriteUInt8(b);
         }
     }
