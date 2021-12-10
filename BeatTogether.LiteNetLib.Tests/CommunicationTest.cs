@@ -62,7 +62,6 @@ namespace BeatTogether.LiteNetLib.Tests
         public void TearDown()
         {
             _clientNetManager.Stop();
-            _server.StopAsync(CancellationToken.None);
             _serviceProvider.Dispose();
         }
 
