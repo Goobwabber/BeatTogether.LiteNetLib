@@ -10,13 +10,16 @@ namespace BeatTogether.LiteNetLib
     public class LiteNetServer : UdpServer
     {
         private readonly LiteNetPacketReader _packetReader;
+        private readonly IServiceProvider _serviceProvider;
 
         public LiteNetServer(
             LiteNetPacketReader packetReader,
+            IServiceProvider serviceProvider,
             IPEndPoint endPoint) 
             : base(endPoint)
         {
             _packetReader = packetReader;
+            _serviceProvider = serviceProvider;
         }
 
         public void SendRaw(EndPoint endPoint, INetSerializable packet)
@@ -46,6 +49,12 @@ namespace BeatTogether.LiteNetLib
                 var bufferReader = new SpanBufferReader(buffer);
                 // TODO: Add encryption
                 INetSerializable packet = _packetReader.ReadFrom(ref bufferReader);
+                var packetHandlerType = typeof(IPacketHandler<>)
+                        .MakeGenericType(packet.GetType());
+                var packetHandler = _serviceProvider.GetService(packetHandlerType);
+                if (packetHandler == null)
+                    return;
+                ((IPacketHandler)packetHandler).Handle(endPoint, packet, ref bufferReader);
             }
             ReceiveAsync();
         }
