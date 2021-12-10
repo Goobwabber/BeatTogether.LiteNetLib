@@ -1,4 +1,4 @@
-﻿using BeatTogether.LiteNetLib.Abstractions;
+using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Enums;
 using Krypton.Buffers;
 using System.Runtime.Serialization;
@@ -23,7 +23,11 @@ namespace BeatTogether.LiteNetLib
             bool isFragmented = (b & 0x80) != 0;                    // 0x80 10000000
 
             if (_packetRegistry.TryCreatePacket(property, out var packet))
+            {
+                packet.ReadFrom(ref reader);
                 return packet;
+            }
+
             throw new InvalidDataContractException(
                 $"Packet property not registered with '{_packetRegistry.GetType().Name}' " +
                 $"(PacketProperty={property})."
