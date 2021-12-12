@@ -21,7 +21,7 @@ namespace BeatTogether.LiteNetLib.Handlers
         {
             _server.SendAsync(endPoint, new PongHeader
             {
-                Sequence = packet.Sequence, // TODO: weird sequencing shit
+                Sequence = packet.Sequence,
                 Time = DateTime.UtcNow.Ticks
             });
             return Task.CompletedTask;
