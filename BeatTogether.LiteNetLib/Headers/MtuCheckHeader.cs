@@ -16,6 +16,7 @@ namespace BeatTogether.LiteNetLib.Headers
             base.ReadFrom(ref bufferReader);
             Mtu = bufferReader.ReadInt32();
             PadSize = bufferReader.RemainingSize - 4; // 4 = int32 size
+            bufferReader.SkipBytes(PadSize);
             CheckEnd = bufferReader.ReadInt32();
         }
 
