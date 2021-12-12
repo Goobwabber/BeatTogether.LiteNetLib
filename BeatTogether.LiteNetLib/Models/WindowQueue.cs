@@ -26,6 +26,10 @@ namespace BeatTogether.LiteNetLib.Models
         {
             _queueSize = queueSize;
             _windowSize = windowSize;
+
+            // Complete tasks inside window
+            for (int i = 0; i < windowSize; i++)
+                _taskQueue.GetOrAdd(i, _ => new()).SetResult();
         }
 
         /// <summary>
@@ -93,8 +97,7 @@ namespace BeatTogether.LiteNetLib.Models
 
                 // Complete tasks that have entered the window
                 var newestIndex = (_windowPosition + _windowSize - 1) % _queueSize;
-                if (_taskQueue.TryGetValue(newestIndex, out TaskCompletionSource task))
-                    task.SetResult();
+                _taskQueue.GetOrAdd(newestIndex, _ => new()).SetResult();
 
                 // Advance window again if current index has been handled
                 if (!_taskQueue.ContainsKey(_windowPosition))
