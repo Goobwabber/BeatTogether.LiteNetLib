@@ -1,4 +1,4 @@
-﻿using BeatTogether.LiteNetLib.Configuration;
+using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Delegates;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
@@ -13,11 +13,6 @@ namespace BeatTogether.LiteNetLib
 {
     public class LiteNetReliableDispatcher
     {
-        /// <summary>
-        /// Number of channels there are for each delivery method
-        /// </summary>
-        public const int ChannelsPerMethod = 4;
-
         public event PacketDispatchHandler DispatchEvent;
 
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, WindowQueue>> _channelWindows = new();
@@ -39,7 +34,7 @@ namespace BeatTogether.LiteNetLib
                     window.Dequeue(sequenceId);
         }
 
-        public async void Send(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId = (int)DeliveryMethod.ReliableOrdered * ChannelsPerMethod)
+        public async void Send(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId = (int)DeliveryMethod.ReliableOrdered)
         {
             var window = _channelWindows.GetOrAdd(endPoint, _ => new())
                 .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));

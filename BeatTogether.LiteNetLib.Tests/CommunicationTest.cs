@@ -7,6 +7,7 @@ using LiteNetLib;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
+using System;
 using System.Threading;
 
 namespace BeatTogether.LiteNetLib.Tests
@@ -51,6 +52,12 @@ namespace BeatTogether.LiteNetLib.Tests
             _serviceProvider = serviceCollection.BuildServiceProvider();
             _server = _serviceProvider.GetService<TestServer>();
             _serverListener = _serviceProvider.GetService<ListenerService>();
+            var clientLogger = _serviceProvider.GetService<ILogger<NetManager>>();
+
+            _clientNetListener.NetworkErrorEvent += (endPoint, error) =>
+            {
+                clientLogger.LogError($"Error: {error}");
+            };
 
             _server.StartAsync(CancellationToken.None);
         }
@@ -79,7 +86,52 @@ namespace BeatTogether.LiteNetLib.Tests
         }
 
         [Test, Timeout(TestTimeout)]
-        public void DeliveryTest()
+        public void ServerDeliveryTest()
+        {
+            bool msgDelivered = false;
+            bool msgReceived = false;
+            const int testSize = 250; //250 * 1024;
+            _serverListener.ConnectedEvent += endPoint =>
+            {
+                msgDelivered = true;
+                byte[] arr = new byte[testSize];
+                arr[0] = 196;
+                //arr[7000] = 32;
+                //arr[12499] = 200;
+                arr[testSize - 1] = 254;
+                _server.Send(endPoint, new ReadOnlySpan<byte>(arr));
+            };
+            _clientNetListener.NetworkReceiveEvent += (endPoint, data, method) =>
+            {
+                Assert.AreEqual(testSize, data.RawDataSize - 4);
+                Assert.AreEqual(196, data.RawData[0 + 4]);
+                //Assert.AreEqual(32, data.RawData[7000 + 4]);
+                //Assert.AreEqual(200, data.RawData[12499 + 4]);
+                Assert.AreEqual(254, data.RawData[testSize + 4 - 1]);
+                Assert.AreEqual(DeliveryMethod.ReliableOrdered, method);
+                msgReceived = true;
+            };
+
+            _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
+
+            while (_clientNetManager.ConnectedPeersCount != 1)
+            {
+                Thread.Sleep(15);
+                _clientNetManager.PollEvents();
+            }
+
+            while (!msgDelivered || !msgReceived)
+            {
+                Thread.Sleep(15);
+                _clientNetManager.PollEvents();
+                Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
+            }
+
+            Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
+        }
+
+        [Test, Timeout(TestTimeout)]
+        public void ClientDeliveryTest()
         {
             bool msgDelivered = false;
             bool msgReceived = false;
