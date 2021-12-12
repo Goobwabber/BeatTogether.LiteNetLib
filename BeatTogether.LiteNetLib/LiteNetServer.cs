@@ -4,12 +4,14 @@ using BeatTogether.LiteNetLib.Headers;
 using Krypton.Buffers;
 using NetCoreServer;
 using System;
+using System.Collections.Concurrent;
 using System.Net;
 
 namespace BeatTogether.LiteNetLib
 {
     public class LiteNetServer : UdpServer
     {
+        private readonly ConcurrentDictionary<EndPoint, long> _connectionTimes = new();
         private readonly LiteNetReliableDispatcher _reliableDispatcher;
         private readonly LiteNetPacketReader _packetReader;
         private readonly IServiceProvider _serviceProvider;
@@ -47,6 +49,19 @@ namespace BeatTogether.LiteNetLib
             }
             ReceiveAsync();
         }
+
+        public void Disconnect(EndPoint endPoint)
+        {
+            if (!_connectionTimes.TryRemove(endPoint, out long connectionTime))
+                return;
+            SendAsync(endPoint, new DisconnectHeader
+            {
+                ConnectionTime = connectionTime
+            });
+        }
+
+        public void AddConnection(EndPoint endPoint, long connectionTime)
+            => _connectionTimes[endPoint] = connectionTime;
 
         public void Send(EndPoint endPoint, ReadOnlySpan<byte> message, DeliveryMethod method = DeliveryMethod.ReliableOrdered)
         {

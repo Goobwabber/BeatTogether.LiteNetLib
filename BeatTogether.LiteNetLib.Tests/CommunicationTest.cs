@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using System;
+using System.Net;
 using System.Threading;
 
 namespace BeatTogether.LiteNetLib.Tests
@@ -179,8 +180,10 @@ namespace BeatTogether.LiteNetLib.Tests
         {
             var clientDisconnected = false;
             var serverDisconnected = false;
-            _clientNetListener.PeerDisconnectedEvent += (peer, info) => { clientDisconnected = true; };
-            _serverListener.DisconnectedEvent += (endPoint, reason, data) => { serverDisconnected = true; };
+            EndPoint clientEndPoint = null!;
+            _clientNetListener.PeerDisconnectedEvent += (peer, info) => clientDisconnected = true;
+            _serverListener.DisconnectedEvent += (endPoint, reason, data) => serverDisconnected = true;
+            _serverListener.ConnectedEvent += endPoint => clientEndPoint = endPoint;
 
             _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
             while (_clientNetManager.ConnectedPeersCount != 1)
@@ -189,17 +192,21 @@ namespace BeatTogether.LiteNetLib.Tests
                 _clientNetManager.PollEvents();
             }
 
-            // TODO: implement disconnect method on server
+            _server.Disconnect(clientEndPoint);
 
-            while (!(clientDisconnected && serverDisconnected))
+            while (!clientDisconnected && !serverDisconnected)
             {
                 Thread.Sleep(15);
                 _clientNetManager.PollEvents();
             }
 
             Assert.True(clientDisconnected);
-            Assert.True(serverDisconnected);
             Assert.AreEqual(0, _clientNetManager.ConnectedPeersCount);
+        }
+
+        private void _serverListener_ConnectedEvent(System.Net.EndPoint obj)
+        {
+            throw new NotImplementedException();
         }
 
         [Test, Timeout(TestTimeout)]

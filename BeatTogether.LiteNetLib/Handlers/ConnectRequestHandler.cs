@@ -46,13 +46,14 @@ namespace BeatTogether.LiteNetLib.Handlers
                     RequestConnectionNumber = packet.ConnectionNumber,
                     IsReusedPeer = false // TODO: implement 'peer' reusing (probably not necessary)
                 });
+                _server.AddConnection(endPoint, packet.ConnectionTime);
                 _listener.OnPeerConnected(endPoint);
                 return Task.CompletedTask;
             }
             _logger.LogTrace($"Rejecting request from {endPoint}");
             _server.SendAsync(endPoint, new DisconnectHeader
             {
-                ConnectTime = packet.ConnectionTime
+                ConnectionTime = packet.ConnectionTime
             });
             return Task.CompletedTask;
         }
