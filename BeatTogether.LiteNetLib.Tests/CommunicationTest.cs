@@ -285,11 +285,6 @@ namespace BeatTogether.LiteNetLib.Tests
             Assert.AreEqual(0, _clientNetManager.ConnectedPeersCount);
         }
 
-        private void _serverListener_ConnectedEvent(System.Net.EndPoint obj)
-        {
-            throw new NotImplementedException();
-        }
-
         [Test, Timeout(TestTimeout)]
         public void DisconnectFromClientTest()
         {
