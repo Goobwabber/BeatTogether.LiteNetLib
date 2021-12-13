@@ -1,5 +1,5 @@
-using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Configuration;
+using BeatTogether.LiteNetLib.Dispatchers;
 using BeatTogether.LiteNetLib.Extensions;
 using BeatTogether.LiteNetLib.Tests.Utilities;
 using Krypton.Buffers;
@@ -8,6 +8,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using System;
+using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,7 +24,9 @@ namespace BeatTogether.LiteNetLib.Tests
 
         private ServiceProvider _serviceProvider;
         private TestServer _server;
-        private ListenerService _serverListener;
+        private ReliableDispatcher _reliableDispatcher;
+        private UnreliableDispatcher _unreliableDispatcher;
+        private UnconnectedDispatcher _unconnectedDispatcher;
 
         public const int TestTimeout = 4000;
 
@@ -42,21 +45,21 @@ namespace BeatTogether.LiteNetLib.Tests
                         .SetMinimumLevel(LogLevel.Trace)
                     )
                 .AddSingleton<LiteNetConfiguration>()
-                .AddSingleton<ListenerService>()
-                .AddSingleton<ILiteNetListener, ListenerService>(x => x.GetRequiredService<ListenerService>())
                 .AddSingleton<TestServer>()
-                .AddHostedService(x => x.GetRequiredService<TestServer>())
+                .AddHostedService(x => x.GetRequiredService<TestServer>()) 
                 .AddSingleton<LiteNetServer, TestServer>(x => x.GetRequiredService<TestServer>())
-                .AddSingleton<LiteNetConnectionPinger>()
                 .AddSingleton<ReliableDispatcher>()
+                .AddSingleton<UnreliableDispatcher>()
+                .AddSingleton<UnconnectedDispatcher>()
                 .AddSingleton<LiteNetAcknowledger>()
                 .AddSingleton<LiteNetPacketReader, DebugReader>()
                 .AddLiteNetMessaging();
 
             _serviceProvider = serviceCollection.BuildServiceProvider();
             _server = _serviceProvider.GetService<TestServer>();
-            _serverListener = _serviceProvider.GetService<ListenerService>();
-            _ = _serviceProvider.GetService<LiteNetConnectionPinger>();
+            _reliableDispatcher = _serviceProvider.GetService<ReliableDispatcher>();
+            _unreliableDispatcher = _serviceProvider.GetService<UnreliableDispatcher>();
+            _unconnectedDispatcher = _serviceProvider.GetService<UnconnectedDispatcher>();
             var clientLogger = _serviceProvider.GetService<ILogger<NetManager>>();
 
             _clientNetListener.NetworkErrorEvent += (endPoint, error) =>
@@ -76,20 +79,21 @@ namespace BeatTogether.LiteNetLib.Tests
 
 
 
-        [Test]
-        public void ConnectionByIpV4()
+        public void WaitUntilConnected()
+            => WaitUntil(() => _clientNetManager.ConnectedPeersCount == 1);
+
+        public void WaitUntil(Func<bool> value)
         {
-            var time = Task.Delay(15000); // Check if server can hold a connection
-
-            _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
-
-            while (_clientNetManager.ConnectedPeersCount != 1)
+            while (!value())
             {
                 Thread.Sleep(15);
                 _clientNetManager.PollEvents();
             }
+        }
 
-            while (!time.IsCompleted)
+        public void WaitWhileConnectedUntil(Func<bool> value)
+        {
+            while (!value())
             {
                 Thread.Sleep(15);
                 _clientNetManager.PollEvents();
@@ -97,45 +101,62 @@ namespace BeatTogether.LiteNetLib.Tests
             }
         }
 
+        public byte[] MakeTest(int size, Dictionary<int, byte> test)
+        {
+            byte[] arr = new byte[size];
+            foreach (var item in test)
+                arr[item.Key] = item.Value;
+            return arr;
+        }
+
+        public void AssertTest(Dictionary<int, byte> expected, byte[] actual, int offset)
+        {
+            foreach (var item in expected)
+                Assert.AreEqual(item.Value, actual[item.Key + offset]);
+        }
+
+
+
+        [Test, Timeout(20000)]
+        public void ConnectionByIpV4()
+        {
+            _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
+            WaitUntilConnected();
+            // Check if server can hold a connection for 15 seconds
+            var time = Task.Delay(15000);
+            WaitUntil(() => time.IsCompleted); 
+        }
+
         [Test, Timeout(TestTimeout)]
         public void DeliveryFromServerTest()
         {
             bool msgDelivered = false;
             bool msgReceived = false;
+
             const int testSize = 250;
-            _serverListener.ConnectedEvent += endPoint =>
+            var test = new Dictionary<int, byte>
             {
+                {0, 196},
+                {testSize / 2, 56},
+                {testSize - 1, 254}
+            };
+
+            _server.ClientConnectEvent += endPoint =>
+            {
+                _reliableDispatcher.Send(endPoint, new ReadOnlySpan<byte>(MakeTest(testSize, test)));
                 msgDelivered = true;
-                byte[] arr = new byte[testSize];
-                arr[0] = 196;
-                arr[testSize - 1] = 254;
-                _server.Send(endPoint, new ReadOnlySpan<byte>(arr));
             };
             _clientNetListener.NetworkReceiveEvent += (endPoint, data, method) =>
             {
                 // 4 is the size of the channeled message header
                 Assert.AreEqual(testSize, data.RawDataSize - 4);
-                Assert.AreEqual(196, data.RawData[0 + 4]);
-                Assert.AreEqual(254, data.RawData[testSize + 4 - 1]);
-                Assert.AreEqual(DeliveryMethod.ReliableOrdered, method);
+                AssertTest(test, data.RawData, 4);
                 msgReceived = true;
             };
 
             _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
-
-            while (_clientNetManager.ConnectedPeersCount != 1)
-            {
-                Thread.Sleep(15);
-                _clientNetManager.PollEvents();
-            }
-
-            while (!msgDelivered || !msgReceived)
-            {
-                Thread.Sleep(15);
-                _clientNetManager.PollEvents();
-                Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
-            }
-
+            WaitUntilConnected();
+            WaitWhileConnectedUntil(() => msgDelivered && msgReceived);
             Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
         }
 
@@ -144,7 +165,15 @@ namespace BeatTogether.LiteNetLib.Tests
         {
             bool msgDelivered = false;
             bool msgReceived = false;
+
             const int testSize = 250;
+            var test = new Dictionary<int, byte>
+            {
+                {0, 196},
+                {testSize / 2, 56},
+                {testSize - 1, 254}
+            };
+
             _clientNetListener.DeliveryEvent += (peer, obj) =>
             {
                 Assert.AreEqual(5, (int)obj);
@@ -153,28 +182,19 @@ namespace BeatTogether.LiteNetLib.Tests
             _clientNetListener.PeerConnectedEvent += peer =>
             {
                 int testData = 5;
-                byte[] arr = new byte[testSize];
-                arr[0] = 196;
-                arr[testSize - 1] = 254;
-                peer.SendWithDeliveryEvent(arr, 0, DeliveryMethod.ReliableUnordered, testData);
+                peer.SendWithDeliveryEvent(MakeTest(testSize, test), 0, DeliveryMethod.ReliableUnordered, testData);
             };
-            _serverListener.ReceiveConnectedEvent += (endPoint, data, method) =>
+            _server.ReceiveConnectedEvent += (endPoint, data, method) =>
             {
                 var reader = new SpanBufferReader(data);
                 Assert.AreEqual(testSize, reader.RemainingSize);
-                Assert.AreEqual(196, reader.RemainingData[0]);
-                Assert.AreEqual(254, reader.RemainingData[testSize - 1]);
+                AssertTest(test, data, 0);
                 msgReceived = true;
             };
 
             _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
-
-            while (_clientNetManager.ConnectedPeersCount != 1 || !msgDelivered || !msgReceived)
-            {
-                Thread.Sleep(15);
-                _clientNetManager.PollEvents();
-            }
-
+            WaitUntilConnected();
+            WaitWhileConnectedUntil(() => msgDelivered && msgReceived);
             Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
         }
 
@@ -183,44 +203,32 @@ namespace BeatTogether.LiteNetLib.Tests
         {
             bool msgDelivered = false;
             bool msgReceived = false;
+
             const int testSize = 250 * 1024;
-            _serverListener.ConnectedEvent += endPoint =>
+            var test = new Dictionary<int, byte>
             {
+                {0, 196},
+                {7000, 32},
+                {12499, 200},
+                {testSize - 1, 254}
+            };
+
+            _server.ClientConnectEvent += endPoint =>
+            {
+                _reliableDispatcher.Send(endPoint, new ReadOnlySpan<byte>(MakeTest(testSize, test)));
                 msgDelivered = true;
-                byte[] arr = new byte[testSize];
-                arr[0] = 196;
-                arr[7000] = 32;
-                arr[12499] = 200;
-                arr[testSize - 1] = 254;
-                _server.Send(endPoint, new ReadOnlySpan<byte>(arr));
             };
             _clientNetListener.NetworkReceiveEvent += (endPoint, data, method) =>
             {
                 // 4 is the size of the channeled message header
                 Assert.AreEqual(testSize, data.RawDataSize - 4);
-                Assert.AreEqual(196, data.RawData[0 + 4]);
-                Assert.AreEqual(32, data.RawData[7000 + 4]);
-                Assert.AreEqual(200, data.RawData[12499 + 4]);
-                Assert.AreEqual(254, data.RawData[testSize + 4 - 1]);
-                Assert.AreEqual(DeliveryMethod.ReliableOrdered, method);
+                AssertTest(test, data.RawData, 4);
                 msgReceived = true;
             };
 
             _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
-
-            while (_clientNetManager.ConnectedPeersCount != 1)
-            {
-                Thread.Sleep(15);
-                _clientNetManager.PollEvents();
-            }
-
-            while (!msgDelivered || !msgReceived)
-            {
-                Thread.Sleep(15);
-                _clientNetManager.PollEvents();
-                Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
-            }
-
+            WaitUntilConnected();
+            WaitWhileConnectedUntil(() => msgDelivered && msgReceived);
             Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
         }
 
@@ -229,7 +237,16 @@ namespace BeatTogether.LiteNetLib.Tests
         {
             bool msgDelivered = false;
             bool msgReceived = false;
+
             const int testSize = 250 * 1024;
+            var test = new Dictionary<int, byte>
+            {
+                {0, 196},
+                {7000, 32},
+                {12499, 200},
+                {testSize - 1, 254}
+            };
+
             _clientNetListener.DeliveryEvent += (peer, obj) =>
             {
                 Assert.AreEqual(5, (int)obj);
@@ -238,32 +255,19 @@ namespace BeatTogether.LiteNetLib.Tests
             _clientNetListener.PeerConnectedEvent += peer =>
             {
                 int testData = 5;
-                byte[] arr = new byte[testSize];
-                arr[0] = 196;
-                arr[7000] = 32;
-                arr[12499] = 200;
-                arr[testSize - 1] = 254;
-                peer.SendWithDeliveryEvent(arr, 0, DeliveryMethod.ReliableUnordered, testData);
+                peer.SendWithDeliveryEvent(MakeTest(testSize, test), 0, DeliveryMethod.ReliableUnordered, testData);
             };
-            _serverListener.ReceiveConnectedEvent += (endPoint, data, method) =>
+            _server.ReceiveConnectedEvent += (endPoint, data, method) =>
             {
                 var reader = new SpanBufferReader(data);
                 Assert.AreEqual(testSize, reader.RemainingSize);
-                Assert.AreEqual(196, reader.RemainingData[0]);
-                Assert.AreEqual(32, reader.RemainingData[7000]);
-                Assert.AreEqual(200, reader.RemainingData[12499]);
-                Assert.AreEqual(254, reader.RemainingData[testSize - 1]);
+                AssertTest(test, data, 0);
                 msgReceived = true;
             };
 
             _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
-
-            while (_clientNetManager.ConnectedPeersCount != 1 || !msgDelivered || !msgReceived)
-            {
-                Thread.Sleep(15);
-                _clientNetManager.PollEvents();
-            }
-
+            WaitUntilConnected();
+            WaitWhileConnectedUntil(() => msgDelivered && msgReceived);
             Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
         }
 
@@ -274,28 +278,18 @@ namespace BeatTogether.LiteNetLib.Tests
             var serverDisconnected = false;
             EndPoint clientEndPoint = null!;
             _clientNetListener.PeerDisconnectedEvent += (peer, info) => clientDisconnected = true;
-            _serverListener.DisconnectedEvent += (endPoint, reason, data) => serverDisconnected = true;
-            _serverListener.ConnectedEvent += endPoint => clientEndPoint = endPoint;
+            _server.ClientDisconnectEvent += (endPoint, reason) => serverDisconnected = true;
+            _server.ClientConnectEvent += endPoint => clientEndPoint = endPoint;
 
             _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
-            while (_clientNetManager.ConnectedPeersCount != 1)
-            {
-                Thread.Sleep(15);
-                _clientNetManager.PollEvents();
-            }
-
+            WaitUntilConnected();
             _server.Disconnect(clientEndPoint, Enums.DisconnectReason.DisconnectPeerCalled);
-
-            while (!clientDisconnected || !serverDisconnected)
-            {
-                Thread.Sleep(15);
-                _clientNetManager.PollEvents();
-            }
-
+            WaitUntil(() => clientDisconnected && serverDisconnected);
             Assert.True(clientDisconnected);
+            Assert.True(serverDisconnected);
             Assert.AreEqual(0, _clientNetManager.ConnectedPeersCount);
         }
-
+        
         [Test, Timeout(TestTimeout)]
         public void DisconnectFromClientTest()
         {
@@ -308,28 +302,16 @@ namespace BeatTogether.LiteNetLib.Tests
                 Assert.AreEqual(0, _clientNetManager.ConnectedPeersCount);
                 clientDisconnected = true;
             };
-            _serverListener.DisconnectedEvent += (endPoint, reason, data) =>
+            _server.ClientDisconnectEvent += (endPoint, reason) =>
             {
                 Assert.AreEqual(Enums.DisconnectReason.RemoteConnectionClose, reason);
                 serverDisconnected = true;
             };
 
             NetPeer serverPeer = _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
-            while (_clientNetManager.ConnectedPeersCount != 1)
-            {
-                Thread.Sleep(15);
-                _clientNetManager.PollEvents();
-            }
-
-            //User server peer from client
+            WaitUntilConnected();
             serverPeer.Disconnect();
-
-            while (!(clientDisconnected && serverDisconnected))
-            {
-                Thread.Sleep(15);
-                _clientNetManager.PollEvents();
-            }
-
+            WaitUntil(() => clientDisconnected && serverDisconnected);
             Assert.True(clientDisconnected);
             Assert.True(serverDisconnected);
             Assert.AreEqual(0, _clientNetManager.ConnectedPeersCount);
