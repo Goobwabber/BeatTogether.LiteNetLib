@@ -61,6 +61,19 @@ namespace BeatTogether.LiteNetLib
         }
 
         /// <summary>
+        /// Called when an endpoint connects
+        /// </summary>
+        /// <param name="endPoint">Endpoint that connected</param>
+        public virtual void OnConnect(EndPoint endPoint) { }
+
+        /// <summary>
+        /// Called when an endpoint disconnects
+        /// </summary>
+        /// <param name="endPoint">Endpoint that disconnected</param>
+        /// <param name="reason">Reason for disconnect</param>
+        public virtual void OnDisconnect(EndPoint endPoint, DisconnectReason reason) { }
+
+        /// <summary>
         /// Called when a connected message is received
         /// </summary>
         /// <param name="endPoint">Endpoint message was received from</param>
@@ -124,6 +137,7 @@ namespace BeatTogether.LiteNetLib
         {
             _connectionTimes[endPoint] = connectionTime;
             PingClient(endPoint);
+            OnConnect(endPoint);
             ClientConnectEvent?.Invoke(endPoint);
         }
 
@@ -132,6 +146,7 @@ namespace BeatTogether.LiteNetLib
             _connectionTimes.TryRemove(endPoint, out _);
             if (_pingCts.TryRemove(endPoint, out var ping))
                 ping.Cancel();
+            OnDisconnect(endPoint, reason);
             ClientDisconnectEvent?.Invoke(endPoint, reason);
         }
 
