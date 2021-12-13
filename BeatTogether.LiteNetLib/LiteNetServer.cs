@@ -50,6 +50,12 @@ namespace BeatTogether.LiteNetLib
 
         protected override void OnReceived(EndPoint endPoint, ReadOnlySpan<byte> buffer)
         {
+            HandlePacket(endPoint, buffer);
+            ReceiveAsync();
+        }
+
+        internal void HandlePacket(EndPoint endPoint, ReadOnlySpan<byte> buffer)
+        {
             if (buffer.Length > 0)
             {
                 var bufferReader = new SpanBufferReader(buffer);
@@ -61,7 +67,6 @@ namespace BeatTogether.LiteNetLib
                     return;
                 ((IPacketHandler)packetHandler).Handle(endPoint, packet, ref bufferReader);
             }
-            ReceiveAsync();
         }
 
         /// <summary>

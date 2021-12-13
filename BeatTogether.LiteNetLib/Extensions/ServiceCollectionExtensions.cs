@@ -15,6 +15,7 @@ namespace BeatTogether.LiteNetLib.Extensions
                 .AddTransient<IPacketHandler<ChanneledHeader>, ChanneledPacketHandler>()
                 .AddTransient<IPacketHandler<ConnectRequestHeader>, ConnectRequestHandler>()
                 .AddTransient<IPacketHandler<DisconnectHeader>, DisconnectPacketHandler>()
+                .AddTransient<IPacketHandler<MergedHeader>, MergedPacketHandler>()
                 .AddTransient<IPacketHandler<MtuCheckHeader>, MtuCheckPacketHandler>()
                 .AddTransient<IPacketHandler<PingHeader>, PingHandler>()
                 .AddTransient<IPacketHandler<PongHeader>, PongHandler>()
