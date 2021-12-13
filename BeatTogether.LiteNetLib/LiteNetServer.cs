@@ -1,4 +1,5 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
+using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Delegates;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
@@ -26,17 +27,20 @@ namespace BeatTogether.LiteNetLib
 
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<int, TaskCompletionSource<long>>> _pongTasks = new();
         private readonly ConcurrentDictionary<EndPoint, CancellationTokenSource> _pingCts = new();
-
         private readonly ConcurrentDictionary<EndPoint, long> _connectionTimes = new();
+
+        private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetPacketReader _packetReader;
         private readonly IServiceProvider _serviceProvider;
 
         public LiteNetServer(
             IPEndPoint endPoint,
+            LiteNetConfiguration configuration,
             LiteNetPacketReader packetReader,
             IServiceProvider serviceProvider) 
             : base(endPoint)
         {
+            _configuration = configuration;
             _packetReader = packetReader;
             _serviceProvider = serviceProvider;
         }
@@ -199,6 +203,7 @@ namespace BeatTogether.LiteNetLib
                 {
                     Sequence = (ushort)sequence
                 });
+                sequence = (sequence + 1) % _configuration.MaxSequence;
                 await Task.Delay(PingDelay);
             }
         }
