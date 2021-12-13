@@ -16,18 +16,15 @@ namespace BeatTogether.LiteNetLib.Handlers
         private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetServer _server;
         private readonly LiteNetAcknowledger _acknowledger;
-        private readonly ILiteNetListener _listener;
 
         public ChanneledPacketHandler(
             LiteNetConfiguration configuration,
             LiteNetServer server,
-            LiteNetAcknowledger acknowledger,
-            ILiteNetListener listener)
+            LiteNetAcknowledger acknowledger)
         {
             _configuration = configuration;
             _server = server;
             _acknowledger = acknowledger;
-            _listener = listener;
         }
 
         public override Task Handle(EndPoint endPoint, ChanneledHeader packet, ref SpanBufferReader reader)
@@ -36,7 +33,7 @@ namespace BeatTogether.LiteNetLib.Handlers
                 return Task.CompletedTask; // 'Bad sequence'
             if (!_acknowledger.Acknowledge(endPoint, packet.ChannelId, packet.Sequence))
                 return Task.CompletedTask; // Already handled this packet
-            _listener.OnNetworkReceive(endPoint, ref reader, (Enums.DeliveryMethod)packet.ChannelId);
+            _server.OnReceiveConnected(endPoint, ref reader, (Enums.DeliveryMethod)packet.ChannelId);
             return Task.CompletedTask;
         }
     }

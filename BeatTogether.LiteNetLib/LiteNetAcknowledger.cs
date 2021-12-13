@@ -3,12 +3,13 @@ using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Models;
 using Krypton.Buffers;
+using System;
 using System.Collections.Concurrent;
 using System.Net;
 
 namespace BeatTogether.LiteNetLib
 {
-    public class LiteNetAcknowledger
+    public class LiteNetAcknowledger : IDisposable
     {
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, ArrayWindow>> _channelWindows = new();
         private readonly LiteNetConfiguration _configuration;
@@ -21,10 +22,10 @@ namespace BeatTogether.LiteNetLib
             _configuration = configuration;
             _server = server;
 
-            _server.ClientDisconnectEvent += (endPoint, _) => Cleanup(endPoint);
+            _server.ClientDisconnectEvent += HandleDisconnect;
         }
 
-        public void Cleanup(EndPoint endPoint)
+        public void HandleDisconnect(EndPoint endPoint, DisconnectReason reason)
             => _channelWindows.TryRemove(endPoint, out _);
 
         /// <summary>
@@ -47,5 +48,8 @@ namespace BeatTogether.LiteNetLib
             });
             return alreadyAcked;
         }
+
+        public void Dispose()
+            => _server.ClientDisconnectEvent -= HandleDisconnect;
     }
 }

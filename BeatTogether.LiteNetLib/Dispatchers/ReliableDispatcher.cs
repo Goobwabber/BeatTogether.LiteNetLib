@@ -5,7 +5,6 @@ using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Models;
 using Krypton.Buffers;
-using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Net;
@@ -13,7 +12,7 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib
 {
-    public class ReliableDispatcher : IMessageDispatcher
+    public class ReliableDispatcher : IMessageDispatcher, IDisposable
     {
         public const byte ChannelId = (byte)DeliveryMethod.ReliableOrdered;
 
@@ -28,11 +27,11 @@ namespace BeatTogether.LiteNetLib
             _configuration = configuration;
             _server = server;
 
-            _server.ClientDisconnectEvent += (endPoint, _) => Cleanup(endPoint);
+            _server.ClientDisconnectEvent += HandleDisconnect;
         }
 
         public void Send(EndPoint endPoint, ref ReadOnlySpan<byte> message)
-            => Send(endPoint, new ReadOnlyMemory<byte>(message.ToArray()));
+            => _ = Send(endPoint, new ReadOnlyMemory<byte>(message.ToArray()));
 
         public async Task Send(EndPoint endPoint, ReadOnlyMemory<byte> message)
         {
@@ -86,7 +85,10 @@ namespace BeatTogether.LiteNetLib
             && channels.TryGetValue(channelId, out var window)
             && window.Dequeue(sequenceId);
 
-        public void Cleanup(EndPoint endPoint)
+        public void HandleDisconnect(EndPoint endPoint, DisconnectReason reason)
             => _channelWindows.TryRemove(endPoint, out _);
+
+        public void Dispose()
+            => _server.ClientDisconnectEvent -= HandleDisconnect;
     }
 }

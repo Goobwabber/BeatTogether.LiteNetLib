@@ -23,7 +23,6 @@ namespace BeatTogether.LiteNetLib
 
         public event ClientConnectHandler ClientConnectEvent;
         public event ClientDisconnectHandler ClientDisconnectEvent;
-        public event ClientLatencyHandler ClientLatencyEvent;
 
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<int, TaskCompletionSource<long>>> _pongTasks = new();
         private readonly ConcurrentDictionary<EndPoint, CancellationTokenSource> _pingCts = new();
@@ -61,6 +60,43 @@ namespace BeatTogether.LiteNetLib
             ReceiveAsync();
         }
 
+        /// <summary>
+        /// Called when a connected message is received
+        /// </summary>
+        /// <param name="endPoint">Endpoint message was received from</param>
+        /// <param name="reader">Message data</param>
+        /// <param name="deliveryMethod">Delivery method of packet</param>
+        public virtual void OnReceiveConnected(EndPoint endPoint, ref SpanBufferReader reader, DeliveryMethod deliveryMethod) { }
+
+        /// <summary>
+        /// Called when an unconnected message is received
+        /// </summary>
+        /// <param name="endPoint">Endpoint message was received from</param>
+        /// <param name="reader">Message data</param>
+        /// <param name="messageType">Message type</param>
+        public virtual void OnReceiveUnconnected(EndPoint endPoint, ref SpanBufferReader reader, UnconnectedMessageType messageType) { }
+
+        /// <summary>
+        /// Called when latency information is updated
+        /// </summary>
+        /// <param name="endPoint">Endpoint latency was updated for</param>
+        /// <param name="latency">Latency value in milliseconds</param>
+        public virtual void OnLatencyUpdate(EndPoint endPoint, int latency) { }
+
+        /// <summary>
+        /// Whether the server should accept a connection
+        /// </summary>
+        /// <param name="endPoint">Endpoint connection request was received from</param>
+        /// <param name="additionalData">Additional data sent with the request</param>
+        /// <returns></returns>
+        public virtual bool ShouldAcceptConnection(EndPoint endPoint, ref SpanBufferReader additionalData)
+            => false;
+
+        /// <summary>
+        /// Sends a raw serializable packet to an endpoint
+        /// </summary>
+        /// <param name="endPoint">Endpoint to send packet to</param>
+        /// <param name="packet">The raw data to send (must include LiteNetLib headers)</param>
         public virtual void SendAsync(EndPoint endPoint, INetSerializable packet)
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
@@ -68,10 +104,12 @@ namespace BeatTogether.LiteNetLib
             SendAsync(endPoint, bufferWriter.Data);
         }
 
-        public void Disconnect(EndPoint endPoint)
-            => Disconnect(endPoint, DisconnectReason.DisconnectPeerCalled);
-
-        internal void Disconnect(EndPoint endPoint, DisconnectReason reason)
+        /// <summary>
+        /// Disconnects a connected endpoint
+        /// </summary>
+        /// <param name="endPoint">Endpoint to disconnect</param>
+        /// <param name="reason">Reason for disconnecting</param>
+        public void Disconnect(EndPoint endPoint, DisconnectReason reason = DisconnectReason.DisconnectPeerCalled)
         {
             if (!_connectionTimes.TryRemove(endPoint, out long connectionTime))
                 return;
@@ -132,7 +170,7 @@ namespace BeatTogether.LiteNetLib
                         timeoutCts.Cancel();
                         timeoutCts = new CancellationTokenSource();
                         var latency = stopwatch.ElapsedMilliseconds / 2;
-                        ClientLatencyEvent?.Invoke(endPoint, latency);
+                        OnLatencyUpdate(endPoint, (int)latency);
 
                         Task.Delay(TimeoutDelay, timeoutCts.Token).ContinueWith(timeout =>
                         {
