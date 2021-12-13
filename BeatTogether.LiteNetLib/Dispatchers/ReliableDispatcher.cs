@@ -1,5 +1,4 @@
 using BeatTogether.LiteNetLib.Configuration;
-using BeatTogether.LiteNetLib.Delegates;
 using BeatTogether.LiteNetLib.Dispatchers.Abstractions;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
@@ -10,7 +9,7 @@ using System.Collections.Concurrent;
 using System.Net;
 using System.Threading.Tasks;
 
-namespace BeatTogether.LiteNetLib
+namespace BeatTogether.LiteNetLib.Dispatchers
 {
     public class ReliableDispatcher : IMessageDispatcher, IDisposable
     {
