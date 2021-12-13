@@ -29,23 +29,27 @@ namespace BeatTogether.LiteNetLib.Models
         /// Adds a new value to window and advances to it
         /// </summary>
         /// <param name="index">index to add to window</param>
-        public void Add(int index)
+        /// <returns>True if index was successfully added</returns>
+        public bool Add(int index)
         {
+            if (!_array.TryAdd(index, index))
+                return false;
             lock (_windowPositionLock)
             {
                 lock (_queuePositionLock)
                 {
                     var queueRelative = (index - _windowPosition + _queueSize * 1.5) % _queueSize - _queueSize / 2;
                     if (index < 0)
-                        return; // Too old
+                        return false; // Too old
                     if (index >= _windowSize * 2)
-                        return; // Too new
+                        return false; // Too new
 
                     _queuePosition = index;
                 }
             }
             _array.TryAdd(index, index);
             Advance();
+            return true;
         }
 
         public int GetWindowPosition()

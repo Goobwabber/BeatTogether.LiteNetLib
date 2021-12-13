@@ -12,16 +12,13 @@ namespace BeatTogether.LiteNetLib.Handlers
         public const int ProtocolId = 11;
 
         private readonly LiteNetServer _server;
-        private readonly ILiteNetListener _listener;
         private readonly ILogger _logger;
 
         public ConnectRequestHandler(
             LiteNetServer server,
-            ILiteNetListener listener,
             ILogger<ConnectRequestHandler> logger)
         {
             _server = server;
-            _listener = listener;
             _logger = logger;
         }
 
@@ -37,7 +34,7 @@ namespace BeatTogether.LiteNetLib.Handlers
 
             // TODO: There is some extra logic here in litenetlib that may be needed (NetManager.ProcessConnectRequest)
 
-            if (_listener.ShouldAcceptConnectionRequest(endPoint, ref reader))
+            if (_server.ShouldAcceptConnection(endPoint, ref reader))
             {
                 _logger.LogTrace($"Accepting request from {endPoint}");
                 _server.SendAsync(endPoint, new ConnectAcceptHeader

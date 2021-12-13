@@ -9,17 +9,17 @@ namespace BeatTogether.LiteNetLib.Handlers
 {
     public class UnreliablePacketHandler : BasePacketHandler<UnreliableHeader>
     {
-        private readonly ILiteNetListener _listener;
+        private readonly LiteNetServer _server;
 
         public UnreliablePacketHandler(
-            ILiteNetListener listener)
+            LiteNetServer server)
         {
-            _listener = listener;
+            _server = server;
         }
 
         public override Task Handle(EndPoint endPoint, UnreliableHeader packet, ref SpanBufferReader reader)
         {
-            _listener.OnNetworkReceive(endPoint, ref reader, DeliveryMethod.Unreliable);
+            _server.OnReceiveConnected(endPoint, ref reader, DeliveryMethod.Unreliable);
             return Task.CompletedTask;
         }
     }

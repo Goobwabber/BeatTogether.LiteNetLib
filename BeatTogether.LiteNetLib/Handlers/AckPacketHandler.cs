@@ -1,7 +1,7 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
+using BeatTogether.LiteNetLib.Dispatchers;
 using BeatTogether.LiteNetLib.Headers;
 using Krypton.Buffers;
-using System;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -9,10 +9,10 @@ namespace BeatTogether.LiteNetLib.Handlers
 {
     public class AckPacketHandler : BasePacketHandler<AckHeader>
     {
-        private readonly LiteNetReliableDispatcher _reliableDispatcher;
+        private readonly ReliableDispatcher _reliableDispatcher;
 
         public AckPacketHandler(
-            LiteNetReliableDispatcher reliableDispatcher)
+            ReliableDispatcher reliableDispatcher)
         {
             _reliableDispatcher = reliableDispatcher;
         }

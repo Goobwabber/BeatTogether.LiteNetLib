@@ -1,4 +1,5 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
+using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Delegates;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
@@ -6,33 +7,42 @@ using Krypton.Buffers;
 using NetCoreServer;
 using System;
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Net;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib
 {
     public class LiteNetServer : UdpServer
     {
+        // Milliseconds between every ping
+        public const int PingDelay = 1000;
+
+        // Milliseconds without pong before client will timeout
+        public const int TimeoutDelay = 5000;
+
         public event ClientConnectHandler ClientConnectEvent;
         public event ClientDisconnectHandler ClientDisconnectEvent;
 
+        private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<int, TaskCompletionSource<long>>> _pongTasks = new();
+        private readonly ConcurrentDictionary<EndPoint, CancellationTokenSource> _pingCts = new();
         private readonly ConcurrentDictionary<EndPoint, long> _connectionTimes = new();
-        private readonly LiteNetReliableDispatcher _reliableDispatcher;
+
+        private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetPacketReader _packetReader;
         private readonly IServiceProvider _serviceProvider;
 
         public LiteNetServer(
             IPEndPoint endPoint,
-            LiteNetReliableDispatcher reliableDispatcher,
+            LiteNetConfiguration configuration,
             LiteNetPacketReader packetReader,
             IServiceProvider serviceProvider) 
             : base(endPoint)
         {
-            _reliableDispatcher = reliableDispatcher;
+            _configuration = configuration;
             _packetReader = packetReader;
             _serviceProvider = serviceProvider;
-
-            _reliableDispatcher.DispatchEvent += (endPoint, buffer)
-                => SendAsync(endPoint, buffer);
         }
 
         protected override void OnStarted()
@@ -54,21 +64,69 @@ namespace BeatTogether.LiteNetLib
             ReceiveAsync();
         }
 
-        public void HandleConnect(EndPoint endPoint, long connectionTime)
+        /// <summary>
+        /// Called when an endpoint connects
+        /// </summary>
+        /// <param name="endPoint">Endpoint that connected</param>
+        public virtual void OnConnect(EndPoint endPoint) { }
+
+        /// <summary>
+        /// Called when an endpoint disconnects
+        /// </summary>
+        /// <param name="endPoint">Endpoint that disconnected</param>
+        /// <param name="reason">Reason for disconnect</param>
+        public virtual void OnDisconnect(EndPoint endPoint, DisconnectReason reason) { }
+
+        /// <summary>
+        /// Called when a connected message is received
+        /// </summary>
+        /// <param name="endPoint">Endpoint message was received from</param>
+        /// <param name="reader">Message data</param>
+        /// <param name="deliveryMethod">Delivery method of packet</param>
+        public virtual void OnReceiveConnected(EndPoint endPoint, ref SpanBufferReader reader, DeliveryMethod deliveryMethod) { }
+
+        /// <summary>
+        /// Called when an unconnected message is received
+        /// </summary>
+        /// <param name="endPoint">Endpoint message was received from</param>
+        /// <param name="reader">Message data</param>
+        /// <param name="messageType">Message type</param>
+        public virtual void OnReceiveUnconnected(EndPoint endPoint, ref SpanBufferReader reader, UnconnectedMessageType messageType) { }
+
+        /// <summary>
+        /// Called when latency information is updated
+        /// </summary>
+        /// <param name="endPoint">Endpoint latency was updated for</param>
+        /// <param name="latency">Latency value in milliseconds</param>
+        public virtual void OnLatencyUpdate(EndPoint endPoint, int latency) { }
+
+        /// <summary>
+        /// Whether the server should accept a connection
+        /// </summary>
+        /// <param name="endPoint">Endpoint connection request was received from</param>
+        /// <param name="additionalData">Additional data sent with the request</param>
+        /// <returns></returns>
+        public virtual bool ShouldAcceptConnection(EndPoint endPoint, ref SpanBufferReader additionalData)
+            => false;
+
+        /// <summary>
+        /// Sends a raw serializable packet to an endpoint
+        /// </summary>
+        /// <param name="endPoint">Endpoint to send packet to</param>
+        /// <param name="packet">The raw data to send (must include LiteNetLib headers)</param>
+        public virtual void SendAsync(EndPoint endPoint, INetSerializable packet)
         {
-            _connectionTimes[endPoint] = connectionTime;
-            _reliableDispatcher.Cleanup(endPoint);
-            ClientConnectEvent?.Invoke(endPoint);
+            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
+            packet.WriteTo(ref bufferWriter);
+            SendAsync(endPoint, bufferWriter.Data);
         }
 
-        public void HandleDisconnect(EndPoint endPoint, DisconnectReason reason, ref SpanBufferReader data)
-        {
-            _connectionTimes.TryRemove(endPoint, out _);
-            _reliableDispatcher.Cleanup(endPoint);
-            ClientDisconnectEvent?.Invoke(endPoint, reason, ref data);
-        }
-
-        public void Disconnect(EndPoint endPoint, DisconnectReason reason)
+        /// <summary>
+        /// Disconnects a connected endpoint
+        /// </summary>
+        /// <param name="endPoint">Endpoint to disconnect</param>
+        /// <param name="reason">Reason for disconnecting</param>
+        public void Disconnect(EndPoint endPoint, DisconnectReason reason = DisconnectReason.DisconnectPeerCalled)
         {
             if (!_connectionTimes.TryRemove(endPoint, out long connectionTime))
                 return;
@@ -76,39 +134,78 @@ namespace BeatTogether.LiteNetLib
             {
                 ConnectionTime = connectionTime
             });
-            var emptyData = new SpanBufferReader();
-            HandleDisconnect(endPoint, reason, ref emptyData);
+            HandleDisconnect(endPoint, reason);
         }
 
-        public void Send(EndPoint endPoint, ReadOnlySpan<byte> message, DeliveryMethod method = DeliveryMethod.ReliableOrdered)
+        internal void HandleConnect(EndPoint endPoint, long connectionTime)
         {
-            var memory = new ReadOnlyMemory<byte>(message.ToArray());
-            if (method != DeliveryMethod.ReliableOrdered)
-                throw new NotImplementedException();
-            _reliableDispatcher.Send(endPoint, memory);
+            _connectionTimes[endPoint] = connectionTime;
+            PingClient(endPoint);
+            OnConnect(endPoint);
+            ClientConnectEvent?.Invoke(endPoint);
         }
 
-        public void SendUnreliable(EndPoint endPoint, ReadOnlySpan<byte> message)
+        internal void HandleDisconnect(EndPoint endPoint, DisconnectReason reason)
         {
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
-            new UnreliableHeader().WriteTo(ref bufferWriter);
-            bufferWriter.WriteBytes(message);
-            SendAsync(endPoint, bufferWriter);
+            _connectionTimes.TryRemove(endPoint, out _);
+            if (_pingCts.TryRemove(endPoint, out var ping))
+                ping.Cancel();
+            OnDisconnect(endPoint, reason);
+            ClientDisconnectEvent?.Invoke(endPoint, reason);
         }
 
-        public void SendUnconnected(EndPoint endPoint, ReadOnlySpan<byte> message)
+        /// <summary>
+        /// Handles a pong that was sent in response to a ping
+        /// </summary>
+        /// <param name="endPoint">Client that sent the pong</param>
+        /// <param name="sequence">Sequence id of the pong</param>
+        /// <param name="time">Time specified by pong</param>
+        internal void HandlePong(EndPoint endPoint, int sequence, long time)
         {
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
-            new UnconnectedHeader().WriteTo(ref bufferWriter);
-            bufferWriter.WriteBytes(message);
-            SendAsync(endPoint, bufferWriter);
+            if (_pongTasks.TryRemove(endPoint, out var pongs))
+                if (pongs.TryRemove(sequence, out var task))
+                    task.SetResult(time);
         }
 
-        public virtual void SendAsync(EndPoint endPoint, INetSerializable packet)
+        /// <summary>
+        /// Creates a loop where it will ping the client and wait for a pong
+        /// Will disconnect the client if not received a pong after specified timeout
+        /// </summary>
+        /// <param name="endPoint">Client to send pings to</param>
+        private async void PingClient(EndPoint endPoint)
         {
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
-            packet.WriteTo(ref bufferWriter);
-            SendAsync(endPoint, bufferWriter.Data);
+            CancellationTokenSource timeoutCts = new CancellationTokenSource();
+
+            int sequence = 1; // MUST BE ONE OR CLIENT WILL IGNORE
+            var cancellation = _pingCts.GetOrAdd(endPoint, _ => new());
+            while (!cancellation.IsCancellationRequested)
+            {
+                var stopwatch = new Stopwatch();
+                var pongTask = _pongTasks.GetOrAdd(endPoint, _ => new())
+                    .GetOrAdd(sequence, _ => new()).Task
+                    .ContinueWith(t => // Don't do anything with time returned by client 
+                    {
+                        stopwatch.Stop();
+                        timeoutCts.Cancel();
+                        timeoutCts = new CancellationTokenSource();
+                        var latency = stopwatch.ElapsedMilliseconds / 2;
+                        OnLatencyUpdate(endPoint, (int)latency);
+
+                        Task.Delay(TimeoutDelay, timeoutCts.Token).ContinueWith(timeout =>
+                        {
+                            if (!timeout.IsCanceled)
+                                Disconnect(endPoint, DisconnectReason.Timeout);
+                        });
+                    });
+
+                stopwatch.Start();
+                SendAsync(endPoint, new PingHeader
+                {
+                    Sequence = (ushort)sequence
+                });
+                sequence = (sequence + 1) % _configuration.MaxSequence;
+                await Task.Delay(PingDelay);
+            }
         }
     }
 }

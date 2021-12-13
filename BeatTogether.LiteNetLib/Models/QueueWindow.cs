@@ -67,12 +67,14 @@ namespace BeatTogether.LiteNetLib.Models
         /// Dequeues a task at a specified index.
         /// </summary>
         /// <param name="index">Index of task to dequeue</param>
-        public void Dequeue(int index)
+        /// <returns>Whether task was successfully dequeued</returns>
+        public bool Dequeue(int index)
         {
-            _taskQueue.TryRemove(index, out _);
+            bool dequeued = _taskQueue.TryRemove(index, out _);
             if (_dequeueTasks.TryRemove(index, out TaskCompletionSource dequeueTask))
                 dequeueTask.SetResult();
             Advance();
+            return dequeued;
         }
 
         /// <summary>

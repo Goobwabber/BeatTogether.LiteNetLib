@@ -9,17 +9,17 @@ namespace BeatTogether.LiteNetLib.Handlers
 {
     public class BroadcastPacketHandler : BasePacketHandler<BroadcastHeader>
     {
-        private readonly ILiteNetListener _listener;
+        private readonly LiteNetServer _server;
 
         public BroadcastPacketHandler(
-            ILiteNetListener listener)
+            LiteNetServer server)
         {
-            _listener = listener;
+            _server = server;
         }
 
         public override Task Handle(EndPoint endPoint, BroadcastHeader packet, ref SpanBufferReader reader)
         {
-            _listener.OnNetworkReceiveUnconnected(endPoint, ref reader, UnconnectedMessageType.Broadcast);
+            _server.OnReceiveUnconnected(endPoint, ref reader, UnconnectedMessageType.Broadcast);
             return Task.CompletedTask;
         }
     }
