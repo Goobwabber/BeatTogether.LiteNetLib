@@ -76,12 +76,17 @@ namespace BeatTogether.LiteNetLib
             _server.SendAsync(endPoint, message.Span);
         }
 
-        public void Acknowledge(EndPoint endPoint, byte channelId, int sequenceId)
-        {
-            if (_channelWindows.TryGetValue(endPoint, out var channels))
-                if (channels.TryGetValue(channelId, out var window))
-                    window.Dequeue(sequenceId);
-        }
+        /// <summary>
+        /// Acknowledges a message so we know to stop sending it
+        /// </summary>
+        /// <param name="endPoint">Originating endpoint</param>
+        /// <param name="channelId">Channel of the message</param>
+        /// <param name="sequenceId">Sequence of the message</param>
+        /// <returns>Whether the message was successfully acknowledged</returns>
+        public bool Acknowledge(EndPoint endPoint, byte channelId, int sequenceId)
+            => _channelWindows.TryGetValue(endPoint, out var channels)
+            && channels.TryGetValue(channelId, out var window)
+            && window.Dequeue(sequenceId);
 
         public void Cleanup(EndPoint endPoint)
             => _channelWindows.TryRemove(endPoint, out _);
