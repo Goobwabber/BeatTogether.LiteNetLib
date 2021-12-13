@@ -18,6 +18,7 @@ namespace BeatTogether.LiteNetLib
         // Milliseconds between every ping
         public const int PingDelay = 1000;
 
+        // Milliseconds before connection times out
         public const int TimeoutDelay = 5000;
 
         private readonly ConcurrentDictionary<EndPoint, int> _latencies = new();
