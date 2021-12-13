@@ -27,17 +27,25 @@ namespace BeatTogether.LiteNetLib
         public void Cleanup(EndPoint endPoint)
             => _channelWindows.TryRemove(endPoint, out _);
 
-        public void HandleMessage(EndPoint endPoint, byte channelId, int sequenceId)
+        /// <summary>
+        /// Sends an acknowledgement back for a received reliable message
+        /// </summary>
+        /// <param name="endPoint">Originating endpoint</param>
+        /// <param name="channelId">Message channel</param>
+        /// <param name="sequenceId">Message sequence</param>
+        /// <returns>True if acknowledgement was not already sent</returns>
+        public bool Acknowledge(EndPoint endPoint, byte channelId, int sequenceId)
         {
             var window = _channelWindows.GetOrAdd(endPoint, _ => new())
                 .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
-            window.Add(sequenceId);
+            var alreadyAcked = window.Add(sequenceId);
             _server.SendAsync(endPoint, new AckHeader
             {
                 Sequence = (ushort)window.GetWindowPosition(),
                 ChannelId = channelId,
                 Acknowledgements = window.GetWindow()
             });
+            return alreadyAcked;
         }
     }
 }

@@ -34,7 +34,8 @@ namespace BeatTogether.LiteNetLib.Handlers
         {
             if (packet.Sequence > _configuration.MaxSequence)
                 return Task.CompletedTask; // 'Bad sequence'
-            _acknowledger.HandleMessage(endPoint, packet.ChannelId, packet.Sequence);
+            if (!_acknowledger.Acknowledge(endPoint, packet.ChannelId, packet.Sequence))
+                return Task.CompletedTask; // Already handled this packet
             _listener.OnNetworkReceive(endPoint, ref reader, (Enums.DeliveryMethod)packet.ChannelId);
             return Task.CompletedTask;
         }
