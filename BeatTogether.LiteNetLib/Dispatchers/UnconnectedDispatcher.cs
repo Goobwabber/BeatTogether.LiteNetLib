@@ -16,7 +16,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             _server = server;
         }
 
-        public void Send(EndPoint endPoint, ref ReadOnlySpan<byte> message)
+        public void Send(EndPoint endPoint, ReadOnlySpan<byte> message)
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             new UnconnectedHeader().WriteTo(ref bufferWriter);

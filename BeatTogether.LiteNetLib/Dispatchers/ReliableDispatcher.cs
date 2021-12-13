@@ -29,7 +29,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             _server.ClientDisconnectEvent += HandleDisconnect;
         }
 
-        public void Send(EndPoint endPoint, ref ReadOnlySpan<byte> message)
+        public void Send(EndPoint endPoint, ReadOnlySpan<byte> message)
             => _ = Send(endPoint, new ReadOnlyMemory<byte>(message.ToArray()));
 
         public async Task Send(EndPoint endPoint, ReadOnlyMemory<byte> message)

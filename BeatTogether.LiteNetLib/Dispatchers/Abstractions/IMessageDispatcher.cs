@@ -6,6 +6,6 @@ namespace BeatTogether.LiteNetLib.Dispatchers.Abstractions
 {
     public interface IMessageDispatcher
     {
-        public void Send(EndPoint endPoint, ref ReadOnlySpan<byte> message);
+        public void Send(EndPoint endPoint, ReadOnlySpan<byte> message);
     }
 }
