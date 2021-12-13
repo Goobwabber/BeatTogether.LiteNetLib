@@ -190,7 +190,7 @@ namespace BeatTogether.LiteNetLib
                         Task.Delay(TimeoutDelay, timeoutCts.Token).ContinueWith(timeout =>
                         {
                             if (!timeout.IsCanceled)
-                                HandleDisconnect(endPoint, DisconnectReason.Timeout);
+                                Disconnect(endPoint, DisconnectReason.Timeout);
                         });
                     });
 
