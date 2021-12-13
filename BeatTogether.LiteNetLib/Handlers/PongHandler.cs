@@ -1,7 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Headers;
 using Krypton.Buffers;
-using System;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -9,17 +8,17 @@ namespace BeatTogether.LiteNetLib.Handlers
 {
     public class PongHandler : BasePacketHandler<PongHeader>
     {
-        private readonly LiteNetConnectionPinger _pinger;
+        private readonly LiteNetServer _server;
 
         public PongHandler(
-            LiteNetConnectionPinger pinger)
+            LiteNetServer server)
         {
-            _pinger = pinger;
+            _server = server;
         }
 
         public override Task Handle(EndPoint endPoint, PongHeader packet, ref SpanBufferReader reader)
         {
-            _pinger.HandlePong(endPoint, packet.Sequence, packet.Time);
+            _server.HandlePong(endPoint, packet.Sequence, packet.Time);
             return Task.CompletedTask;
         }
     }

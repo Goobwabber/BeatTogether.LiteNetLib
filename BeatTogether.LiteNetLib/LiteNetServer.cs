@@ -94,7 +94,6 @@ namespace BeatTogether.LiteNetLib
             _connectionTimes.TryRemove(endPoint, out _);
             if (_pingCts.TryRemove(endPoint, out var ping))
                 ping.Cancel();
-            ClientCleanupEvent?.Invoke(endPoint);
             ClientDisconnectEvent?.Invoke(endPoint, reason);
         }
 
@@ -135,12 +134,11 @@ namespace BeatTogether.LiteNetLib
                         var latency = stopwatch.ElapsedMilliseconds / 2;
                         ClientLatencyEvent?.Invoke(endPoint, latency);
 
-                        try
+                        Task.Delay(TimeoutDelay, timeoutCts.Token).ContinueWith(timeout =>
                         {
-                            await Task.Delay(TimeoutDelay, timeoutCts.Token);
-                            HandleDisconnect(endPoint, DisconnectReason.Timeout);
-                        }
-                        catch { }
+                            if (!timeout.IsCanceled)
+                                HandleDisconnect(endPoint, DisconnectReason.Timeout);
+                        });
                     });
 
                 stopwatch.Start();

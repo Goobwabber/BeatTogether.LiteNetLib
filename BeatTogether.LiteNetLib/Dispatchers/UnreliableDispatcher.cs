@@ -1,4 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Dispatchers.Abstractions;
+using BeatTogether.LiteNetLib.Headers;
+using Krypton.Buffers;
 using System;
 using System.Net;
 

@@ -1,7 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Headers;
 using Krypton.Buffers;
-using System;
 using System.Net;
 using System.Threading.Tasks;
 

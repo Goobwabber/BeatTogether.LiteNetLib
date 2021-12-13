@@ -21,10 +21,10 @@ namespace BeatTogether.LiteNetLib
             _configuration = configuration;
             _server = server;
 
-            _server.ClientDisconnectEvent += Cleanup;
+            _server.ClientDisconnectEvent += (endPoint, _) => Cleanup(endPoint);
         }
 
-        public void Cleanup(EndPoint endPoint, DisconnectReason reason, ref SpanBufferReader reader)
+        public void Cleanup(EndPoint endPoint)
             => _channelWindows.TryRemove(endPoint, out _);
 
         public void HandleMessage(EndPoint endPoint, byte channelId, int sequenceId)

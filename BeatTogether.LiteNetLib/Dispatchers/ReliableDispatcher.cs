@@ -32,14 +32,14 @@ namespace BeatTogether.LiteNetLib
         }
 
         public void Send(EndPoint endPoint, ref ReadOnlySpan<byte> message)
-            => Send(endPoint, new ReadOnlyMemory<byte>(message))
+            => Send(endPoint, new ReadOnlyMemory<byte>(message.ToArray()));
 
         public async Task Send(EndPoint endPoint, ReadOnlyMemory<byte> message)
         {
             var window = _channelWindows.GetOrAdd(endPoint, _ => new())
                 .GetOrAdd(ChannelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
             await window.Enqueue(out int queueIndex);
-            await SendAndRetry(endPoint, message, channelId, queueIndex);
+            await SendAndRetry(endPoint, message, ChannelId, queueIndex);
         }
 
         private async Task SendAndRetry(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int queueIndex)
@@ -71,8 +71,6 @@ namespace BeatTogether.LiteNetLib
                 Sequence = (ushort)sequence
             }.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message.Span);
-            _server.send
-
             _server.SendAsync(endPoint, message.Span);
         }
 
