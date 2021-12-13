@@ -20,7 +20,11 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             LiteNetPacketReader packetReader, 
             IServiceProvider serviceProvider,
             ILogger<TestServer> logger) 
-            : base(new IPEndPoint(IPAddress.Loopback, Port), reliableDispatcher, packetReader, serviceProvider)
+            : base(
+                  new IPEndPoint(IPAddress.Loopback, Port),
+                  reliableDispatcher, 
+                  packetReader, 
+                  serviceProvider)
         {
             _logger = logger;
         }

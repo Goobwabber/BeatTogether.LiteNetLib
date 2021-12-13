@@ -9,9 +9,18 @@ namespace BeatTogether.LiteNetLib.Handlers
 {
     public class PongHandler : BasePacketHandler<PongHeader>
     {
+        private readonly LiteNetConnectionPinger _pinger;
+
+        public PongHandler(
+            LiteNetConnectionPinger pinger)
+        {
+            _pinger = pinger;
+        }
+
         public override Task Handle(EndPoint endPoint, PongHeader packet, ref SpanBufferReader reader)
         {
-            throw new NotImplementedException(); // TODO
+            _pinger.HandlePong(endPoint, packet.Sequence, packet.Time);
+            return Task.CompletedTask;
         }
     }
 }

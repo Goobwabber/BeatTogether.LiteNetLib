@@ -10,6 +10,7 @@ using NUnit.Framework;
 using System;
 using System.Net;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Tests
 {
@@ -46,6 +47,7 @@ namespace BeatTogether.LiteNetLib.Tests
                 .AddSingleton<TestServer>()
                 .AddHostedService(x => x.GetRequiredService<TestServer>())
                 .AddSingleton<LiteNetServer, TestServer>(x => x.GetRequiredService<TestServer>())
+                .AddSingleton<LiteNetConnectionPinger>()
                 .AddSingleton<LiteNetReliableDispatcher>()
                 .AddSingleton<LiteNetAcknowledger>()
                 .AddSingleton<LiteNetPacketReader, DebugReader>()
@@ -54,6 +56,7 @@ namespace BeatTogether.LiteNetLib.Tests
             _serviceProvider = serviceCollection.BuildServiceProvider();
             _server = _serviceProvider.GetService<TestServer>();
             _serverListener = _serviceProvider.GetService<ListenerService>();
+            _ = _serviceProvider.GetService<LiteNetConnectionPinger>();
             var clientLogger = _serviceProvider.GetService<ILogger<NetManager>>();
 
             _clientNetListener.NetworkErrorEvent += (endPoint, error) =>
@@ -73,9 +76,11 @@ namespace BeatTogether.LiteNetLib.Tests
 
 
 
-        [Test, Timeout(TestTimeout)]
+        [Test]
         public void ConnectionByIpV4()
         {
+            var time = Task.Delay(15000); // Check if server can hold a connection
+
             _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
 
             while (_clientNetManager.ConnectedPeersCount != 1)
@@ -84,7 +89,12 @@ namespace BeatTogether.LiteNetLib.Tests
                 _clientNetManager.PollEvents();
             }
 
-            Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
+            while (!time.IsCompleted)
+            {
+                Thread.Sleep(15);
+                _clientNetManager.PollEvents();
+                Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
+            }
         }
 
         [Test, Timeout(TestTimeout)]

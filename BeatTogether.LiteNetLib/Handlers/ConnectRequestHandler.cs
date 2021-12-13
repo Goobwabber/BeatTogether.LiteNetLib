@@ -12,21 +12,15 @@ namespace BeatTogether.LiteNetLib.Handlers
         public const int ProtocolId = 11;
 
         private readonly LiteNetServer _server;
-        private readonly LiteNetReliableDispatcher _dispatcher;
-        private readonly LiteNetAcknowledger _acknowledger;
         private readonly ILiteNetListener _listener;
         private readonly ILogger _logger;
 
         public ConnectRequestHandler(
             LiteNetServer server,
-            LiteNetReliableDispatcher dispatcher,
-            LiteNetAcknowledger acknowledger,
             ILiteNetListener listener,
             ILogger<ConnectRequestHandler> logger)
         {
             _server = server;
-            _dispatcher = dispatcher;
-            _acknowledger = acknowledger;
             _listener = listener;
             _logger = logger;
         }
@@ -52,8 +46,6 @@ namespace BeatTogether.LiteNetLib.Handlers
                     RequestConnectionNumber = packet.ConnectionNumber,
                     IsReusedPeer = false // TODO: implement 'peer' reusing (probably not necessary)
                 });
-                _dispatcher.Cleanup(endPoint);
-                _acknowledger.Cleanup(endPoint);
                 _server.AddConnection(endPoint, packet.ConnectionTime);
                 _listener.OnPeerConnected(endPoint);
                 return Task.CompletedTask;

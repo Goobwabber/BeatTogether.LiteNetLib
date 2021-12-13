@@ -18,6 +18,8 @@ namespace BeatTogether.LiteNetLib
         {
             _configuration = configuration;
             _server = server;
+
+            _server.CleanupEvent += Cleanup;
         }
 
         public void Cleanup(EndPoint endPoint)

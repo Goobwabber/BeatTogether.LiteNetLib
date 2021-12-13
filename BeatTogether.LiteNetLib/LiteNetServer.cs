@@ -11,6 +11,9 @@ namespace BeatTogether.LiteNetLib
 {
     public class LiteNetServer : UdpServer
     {
+        public event Action<EndPoint> ConnectionEvent;
+        public event Action<EndPoint> CleanupEvent;
+
         private readonly ConcurrentDictionary<EndPoint, long> _connectionTimes = new();
         private readonly LiteNetReliableDispatcher _reliableDispatcher;
         private readonly LiteNetPacketReader _packetReader;
@@ -61,7 +64,18 @@ namespace BeatTogether.LiteNetLib
         }
 
         public void AddConnection(EndPoint endPoint, long connectionTime)
-            => _connectionTimes[endPoint] = connectionTime;
+        {
+            _connectionTimes[endPoint] = connectionTime;
+            _reliableDispatcher.Cleanup(endPoint);
+            ConnectionEvent?.Invoke(endPoint);
+        }
+
+        public void Cleanup(EndPoint endPoint)
+        {
+            _connectionTimes.TryRemove(endPoint, out _);
+            _reliableDispatcher.Cleanup(endPoint);
+            CleanupEvent?.Invoke(endPoint);
+        }
 
         public void Send(EndPoint endPoint, ReadOnlySpan<byte> message, DeliveryMethod method = DeliveryMethod.ReliableOrdered)
         {
