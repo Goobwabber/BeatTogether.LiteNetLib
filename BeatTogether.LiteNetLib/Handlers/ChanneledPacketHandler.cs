@@ -15,15 +15,18 @@ namespace BeatTogether.LiteNetLib.Handlers
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, ArrayWindow>> _channelWindows = new();
         private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetServer _server;
+        private readonly LiteNetAcknowledger _acknowledger;
         private readonly ILiteNetListener _listener;
 
         public ChanneledPacketHandler(
             LiteNetConfiguration configuration,
             LiteNetServer server,
+            LiteNetAcknowledger acknowledger,
             ILiteNetListener listener)
         {
             _configuration = configuration;
             _server = server;
+            _acknowledger = acknowledger;
             _listener = listener;
         }
 
@@ -31,15 +34,7 @@ namespace BeatTogether.LiteNetLib.Handlers
         {
             if (packet.Sequence > _configuration.MaxSequence)
                 return Task.CompletedTask; // 'Bad sequence'
-            var window = _channelWindows.GetOrAdd(endPoint, _ => new())
-                .GetOrAdd(packet.ChannelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
-            window.Add(packet.Sequence);
-            _server.SendAsync(endPoint, new AckHeader
-            {
-                Sequence = (ushort)window.GetWindowPosition(),
-                ChannelId = packet.ChannelId,
-                Acknowledgements = window.GetWindow()
-            });
+            _acknowledger.HandleMessage(endPoint, packet.ChannelId, packet.Sequence);
             _listener.OnNetworkReceive(endPoint, ref reader, (Enums.DeliveryMethod)packet.ChannelId);
             return Task.CompletedTask;
         }

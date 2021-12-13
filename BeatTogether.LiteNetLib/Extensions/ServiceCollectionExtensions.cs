@@ -12,7 +12,7 @@ namespace BeatTogether.LiteNetLib.Extensions
                 .AddSingleton<LiteNetPacketRegistry>()
                 .AddTransient<IPacketHandler<AckHeader>, AckPacketHandler>()
                 .AddTransient<IPacketHandler<BroadcastHeader>, BroadcastPacketHandler>()
-                .AddSingleton<IPacketHandler<ChanneledHeader>, ChanneledPacketHandler>()
+                .AddTransient<IPacketHandler<ChanneledHeader>, ChanneledPacketHandler>()
                 .AddTransient<IPacketHandler<ConnectRequestHeader>, ConnectRequestHandler>()
                 .AddTransient<IPacketHandler<DisconnectHeader>, DisconnectPacketHandler>()
                 .AddTransient<IPacketHandler<MtuCheckHeader>, MtuCheckPacketHandler>()
