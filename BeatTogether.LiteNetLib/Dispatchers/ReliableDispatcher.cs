@@ -69,7 +69,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 Sequence = (ushort)sequence
             }.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message.Span);
-            _server.SendAsync(endPoint, message.Span);
+            _server.SendAsync(endPoint, bufferWriter.Data);
         }
 
         /// <summary>
