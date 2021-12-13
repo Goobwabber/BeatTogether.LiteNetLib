@@ -1,4 +1,6 @@
-﻿using Microsoft.Extensions.Hosting;
+﻿using BeatTogether.LiteNetLib.Abstractions;
+using Krypton.Buffers;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Net;
@@ -35,6 +37,14 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             Stop();
             _logger.LogInformation($"Stopped test server on {Endpoint}");
             return Task.CompletedTask;
+        }
+
+        public override void SendAsync(EndPoint endPoint, INetSerializable packet)
+        {
+            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
+            packet.WriteTo(ref bufferWriter);
+            _logger.LogTrace($"Sending packet [{string.Join(", ", bufferWriter.Data.ToArray())}]");
+            SendAsync(endPoint, bufferWriter.Data);
         }
     }
 }

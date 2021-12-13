@@ -6,7 +6,7 @@ namespace BeatTogether.LiteNetLib.Models
     /// <summary>
     /// Designed for handling a "window" of packets inside a larger queue of them.
     /// </summary>
-    public class WindowQueue
+    public class QueueWindow
     {
         private readonly ConcurrentDictionary<int, TaskCompletionSource> _taskQueue = new();
         private readonly ConcurrentDictionary<int, TaskCompletionSource> _dequeueTasks = new();
@@ -22,7 +22,7 @@ namespace BeatTogether.LiteNetLib.Models
         /// </summary>
         /// <param name="windowSize">Size of the window</param>
         /// <param name="queueSize">Size of the queue to iterate along</param>
-        public WindowQueue(int windowSize, int queueSize)
+        public QueueWindow(int windowSize, int queueSize)
         {
             _queueSize = queueSize;
             _windowSize = windowSize;
@@ -72,8 +72,7 @@ namespace BeatTogether.LiteNetLib.Models
             _taskQueue.TryRemove(index, out _);
             if (_dequeueTasks.TryRemove(index, out TaskCompletionSource dequeueTask))
                 dequeueTask.SetResult();
-            if (index == _windowPosition)
-                Advance();
+            Advance();
         }
 
         /// <summary>
@@ -92,7 +91,7 @@ namespace BeatTogether.LiteNetLib.Models
             lock (_windowPositionLock)
             {
                 if (_taskQueue.ContainsKey(_windowPosition))
-                    return; // Lost the race
+                    return; // Should not advance
                 _windowPosition = (_windowPosition + 1) % _queueSize;
 
                 // Complete tasks that have entered the window

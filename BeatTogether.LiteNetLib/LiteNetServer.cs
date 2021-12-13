@@ -87,7 +87,7 @@ namespace BeatTogether.LiteNetLib
             SendAsync(endPoint, bufferWriter);
         }
 
-        public void SendAsync(EndPoint endPoint, INetSerializable packet)
+        public virtual void SendAsync(EndPoint endPoint, INetSerializable packet)
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             packet.WriteTo(ref bufferWriter);

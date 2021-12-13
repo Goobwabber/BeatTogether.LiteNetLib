@@ -44,6 +44,7 @@ namespace BeatTogether.LiteNetLib.Headers
                 int ackBit = acknowledgement % 8;
                 bytes[ackByte] |= (byte)(1 << ackBit);
             }
+            bufferWriter.WriteBytes(bytes);
         }
     }
 }

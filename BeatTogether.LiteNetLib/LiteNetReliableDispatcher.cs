@@ -15,7 +15,7 @@ namespace BeatTogether.LiteNetLib
     {
         public event PacketDispatchHandler DispatchEvent;
 
-        private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, WindowQueue>> _channelWindows = new();
+        private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, QueueWindow>> _channelWindows = new();
         private readonly LiteNetConfiguration _configuration;
 
         public LiteNetReliableDispatcher(
