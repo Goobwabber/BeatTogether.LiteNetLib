@@ -8,27 +8,6 @@ namespace BeatTogether.LiteNetLib.Abstractions
     public interface ILiteNetListener
     {
         /// <summary>
-        /// New remote peer connected to host, or client connected to remote host
-        /// </summary>
-        /// <param name="peer">Connected peer object</param>
-        void OnPeerConnected(EndPoint peer);
-
-        /// <summary>
-        /// Peer disconnected
-        /// </summary>
-        /// <param name="peer">disconnected peer</param>
-        /// <param name="reason">additional info about reason</param>
-        /// <param name="additionalData">additional data that can be accessed (only if reason is RemoteConnectionClose)</param>
-        void OnPeerDisconnected(EndPoint peer, DisconnectReason reason, ref SpanBufferReader additionalData);
-
-        /// <summary>
-        /// Network error (on send or receive)
-        /// </summary>
-        /// <param name="endPoint">From endPoint (can be null)</param>
-        /// <param name="ex">Network exception</param>
-        void OnNetworkError(EndPoint endPoint, Exception ex);
-
-        /// <summary>
         /// Received some data
         /// </summary>
         /// <param name="peer">From peer</param>

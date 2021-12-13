@@ -1,6 +1,8 @@
 ﻿using BeatTogether.LiteNetLib.Configuration;
+using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Models;
+using Krypton.Buffers;
 using System.Collections.Concurrent;
 using System.Net;
 
@@ -19,10 +21,10 @@ namespace BeatTogether.LiteNetLib
             _configuration = configuration;
             _server = server;
 
-            _server.CleanupEvent += Cleanup;
+            _server.ClientDisconnectEvent += Cleanup;
         }
 
-        public void Cleanup(EndPoint endPoint)
+        public void Cleanup(EndPoint endPoint, DisconnectReason reason, ref SpanBufferReader reader)
             => _channelWindows.TryRemove(endPoint, out _);
 
         public void HandleMessage(EndPoint endPoint, byte channelId, int sequenceId)

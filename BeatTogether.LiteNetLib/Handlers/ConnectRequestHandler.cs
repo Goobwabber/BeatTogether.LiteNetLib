@@ -46,8 +46,7 @@ namespace BeatTogether.LiteNetLib.Handlers
                     RequestConnectionNumber = packet.ConnectionNumber,
                     IsReusedPeer = false // TODO: implement 'peer' reusing (probably not necessary)
                 });
-                _server.AddConnection(endPoint, packet.ConnectionTime);
-                _listener.OnPeerConnected(endPoint);
+                _server.HandleConnect(endPoint, packet.ConnectionTime);
                 return Task.CompletedTask;
             }
             _logger.LogTrace($"Rejecting request from {endPoint}");

@@ -284,9 +284,9 @@ namespace BeatTogether.LiteNetLib.Tests
                 _clientNetManager.PollEvents();
             }
 
-            _server.Disconnect(clientEndPoint);
+            _server.Disconnect(clientEndPoint, Enums.DisconnectReason.DisconnectPeerCalled);
 
-            while (!clientDisconnected && !serverDisconnected)
+            while (!clientDisconnected || !serverDisconnected)
             {
                 Thread.Sleep(15);
                 _clientNetManager.PollEvents();

@@ -1,4 +1,5 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
+using BeatTogether.LiteNetLib.Delegates;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using Krypton.Buffers;
@@ -11,8 +12,8 @@ namespace BeatTogether.LiteNetLib
 {
     public class LiteNetServer : UdpServer
     {
-        public event Action<EndPoint> ConnectionEvent;
-        public event Action<EndPoint> CleanupEvent;
+        public event ClientConnectHandler ClientConnectEvent;
+        public event ClientDisconnectHandler ClientDisconnectEvent;
 
         private readonly ConcurrentDictionary<EndPoint, long> _connectionTimes = new();
         private readonly LiteNetReliableDispatcher _reliableDispatcher;
@@ -53,7 +54,21 @@ namespace BeatTogether.LiteNetLib
             ReceiveAsync();
         }
 
-        public void Disconnect(EndPoint endPoint)
+        public void HandleConnect(EndPoint endPoint, long connectionTime)
+        {
+            _connectionTimes[endPoint] = connectionTime;
+            _reliableDispatcher.Cleanup(endPoint);
+            ClientConnectEvent?.Invoke(endPoint);
+        }
+
+        public void HandleDisconnect(EndPoint endPoint, DisconnectReason reason, ref SpanBufferReader data)
+        {
+            _connectionTimes.TryRemove(endPoint, out _);
+            _reliableDispatcher.Cleanup(endPoint);
+            ClientDisconnectEvent?.Invoke(endPoint, reason, ref data);
+        }
+
+        public void Disconnect(EndPoint endPoint, DisconnectReason reason)
         {
             if (!_connectionTimes.TryRemove(endPoint, out long connectionTime))
                 return;
@@ -61,20 +76,8 @@ namespace BeatTogether.LiteNetLib
             {
                 ConnectionTime = connectionTime
             });
-        }
-
-        public void AddConnection(EndPoint endPoint, long connectionTime)
-        {
-            _connectionTimes[endPoint] = connectionTime;
-            _reliableDispatcher.Cleanup(endPoint);
-            ConnectionEvent?.Invoke(endPoint);
-        }
-
-        public void Cleanup(EndPoint endPoint)
-        {
-            _connectionTimes.TryRemove(endPoint, out _);
-            _reliableDispatcher.Cleanup(endPoint);
-            CleanupEvent?.Invoke(endPoint);
+            var emptyData = new SpanBufferReader();
+            HandleDisconnect(endPoint, reason, ref emptyData);
         }
 
         public void Send(EndPoint endPoint, ReadOnlySpan<byte> message, DeliveryMethod method = DeliveryMethod.ReliableOrdered)

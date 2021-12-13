@@ -14,17 +14,18 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
         public event Action<EndPoint> ConnectedEvent;
         public event Action<EndPoint, DisconnectReason, byte[]> DisconnectedEvent;
 
+        private readonly LiteNetServer _server;
         private readonly ILogger _logger;
 
         public ListenerService(
+            LiteNetServer server,
             ILogger<ListenerService> logger)
         {
-            _logger = logger;;
-        }
+            _server = server;
+            _logger = logger;
 
-        public void OnNetworkError(EndPoint endPoint, Exception ex)
-        {
-            throw new NotImplementedException();
+            _server.ClientConnectEvent += OnPeerConnected;
+            _server.ClientDisconnectEvent += OnPeerDisconnected;
         }
 
         public void OnNetworkLatencyUpdate(EndPoint peer, int latency)

@@ -19,7 +19,6 @@ namespace BeatTogether.LiteNetLib.Extensions
                 .AddTransient<IPacketHandler<PingHeader>, PingHandler>()
                 .AddTransient<IPacketHandler<PongHeader>, PongHandler>()
                 .AddTransient<IPacketHandler<UnconnectedHeader>, UnconnectedPacketHandler>()
-                .AddTransient<IPacketHandler<UnreliableHeader>, UnreliablePacketHandler>()
-                .AddTransient<IPacketHandler<ShutdownOkHeader>, ShutdownPacketHandler>();
+                .AddTransient<IPacketHandler<UnreliableHeader>, UnreliablePacketHandler>();
     }
 }

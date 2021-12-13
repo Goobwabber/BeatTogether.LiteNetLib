@@ -1,5 +1,8 @@
-﻿using BeatTogether.LiteNetLib.Configuration;
+﻿using BeatTogether.LiteNetLib.Abstractions;
+using BeatTogether.LiteNetLib.Configuration;
+using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
+using Krypton.Buffers;
 using Microsoft.Extensions.Logging;
 using System.Collections.Concurrent;
 using System.Diagnostics;
@@ -22,19 +25,22 @@ namespace BeatTogether.LiteNetLib
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<int, TaskCompletionSource<long>>> _pongTasks = new();
         private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetServer _server;
+        private readonly ILiteNetListener _listener;
         private readonly ILogger _logger;
 
         public LiteNetConnectionPinger(
             LiteNetConfiguration configuration,
             LiteNetServer server,
+            ILiteNetListener listener,
             ILogger<LiteNetConnectionPinger> logger)
         {
             _configuration = configuration;
             _server = server;
+            _listener = listener;
             _logger = logger;
 
-            _server.ConnectionEvent += AddConnection;
-            _server.CleanupEvent += Cleanup;
+            _server.ClientConnectEvent += AddConnection;
+            _server.ClientDisconnectEvent += Cleanup;
         }
 
         public async void AddConnection(EndPoint endPoint)
@@ -42,7 +48,7 @@ namespace BeatTogether.LiteNetLib
             // TODO: this current setup will cause issues if a packet is dropped
 
             Cleanup(endPoint);
-            _logger.LogTrace($"Begining {endPoint} ping cycle");
+            _logger.LogTrace($"Beginning {endPoint} ping cycle");
 
             int pingSequence = 1;
             var pingCanceller = _pingCancellers.GetOrAdd(endPoint, _ => new());
@@ -69,8 +75,8 @@ namespace BeatTogether.LiteNetLib
                 }
                 else
                 {
-                    _server.Disconnect(endPoint);
                     _logger.LogWarning($"{endPoint} timed out!");
+                    _server.Disconnect(endPoint, DisconnectReason.Timeout);
                     return;
                 }
 
@@ -83,6 +89,9 @@ namespace BeatTogether.LiteNetLib
                 pingSequence = (pingSequence + 1) % _configuration.MaxSequence;
             }
         }
+
+        protected void Cleanup(EndPoint endPoint, DisconnectReason reason, ref SpanBufferReader reader)
+            => Cleanup(endPoint);
 
         public void Cleanup(EndPoint endPoint)
         {
