@@ -9,10 +9,10 @@ namespace BeatTogether.LiteNetLib.Handlers
 {
     public class AckPacketHandler : BasePacketHandler<AckHeader>
     {
-        private readonly LiteNetReliableDispatcher _reliableDispatcher;
+        private readonly ReliableDispatcher _reliableDispatcher;
 
         public AckPacketHandler(
-            LiteNetReliableDispatcher reliableDispatcher)
+            ReliableDispatcher reliableDispatcher)
         {
             _reliableDispatcher = reliableDispatcher;
         }

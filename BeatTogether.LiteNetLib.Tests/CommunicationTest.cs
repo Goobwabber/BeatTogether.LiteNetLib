@@ -48,7 +48,7 @@ namespace BeatTogether.LiteNetLib.Tests
                 .AddHostedService(x => x.GetRequiredService<TestServer>())
                 .AddSingleton<LiteNetServer, TestServer>(x => x.GetRequiredService<TestServer>())
                 .AddSingleton<LiteNetConnectionPinger>()
-                .AddSingleton<LiteNetReliableDispatcher>()
+                .AddSingleton<ReliableDispatcher>()
                 .AddSingleton<LiteNetAcknowledger>()
                 .AddSingleton<LiteNetPacketReader, DebugReader>()
                 .AddLiteNetMessaging();

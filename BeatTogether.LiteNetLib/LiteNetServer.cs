@@ -16,23 +16,17 @@ namespace BeatTogether.LiteNetLib
         public event ClientDisconnectHandler ClientDisconnectEvent;
 
         private readonly ConcurrentDictionary<EndPoint, long> _connectionTimes = new();
-        private readonly LiteNetReliableDispatcher _reliableDispatcher;
         private readonly LiteNetPacketReader _packetReader;
         private readonly IServiceProvider _serviceProvider;
 
         public LiteNetServer(
             IPEndPoint endPoint,
-            LiteNetReliableDispatcher reliableDispatcher,
             LiteNetPacketReader packetReader,
             IServiceProvider serviceProvider) 
             : base(endPoint)
         {
-            _reliableDispatcher = reliableDispatcher;
             _packetReader = packetReader;
             _serviceProvider = serviceProvider;
-
-            _reliableDispatcher.DispatchEvent += (endPoint, buffer)
-                => SendAsync(endPoint, buffer);
         }
 
         protected override void OnStarted()
@@ -54,21 +48,17 @@ namespace BeatTogether.LiteNetLib
             ReceiveAsync();
         }
 
-        public void HandleConnect(EndPoint endPoint, long connectionTime)
+        public virtual void SendAsync(EndPoint endPoint, INetSerializable packet)
         {
-            _connectionTimes[endPoint] = connectionTime;
-            _reliableDispatcher.Cleanup(endPoint);
-            ClientConnectEvent?.Invoke(endPoint);
+            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
+            packet.WriteTo(ref bufferWriter);
+            SendAsync(endPoint, bufferWriter.Data);
         }
 
-        public void HandleDisconnect(EndPoint endPoint, DisconnectReason reason, ref SpanBufferReader data)
-        {
-            _connectionTimes.TryRemove(endPoint, out _);
-            _reliableDispatcher.Cleanup(endPoint);
-            ClientDisconnectEvent?.Invoke(endPoint, reason, ref data);
-        }
+        public void Disconnect(EndPoint endPoint)
+            => Disconnect(endPoint, DisconnectReason.DisconnectPeerCalled);
 
-        public void Disconnect(EndPoint endPoint, DisconnectReason reason)
+        internal void Disconnect(EndPoint endPoint, DisconnectReason reason)
         {
             if (!_connectionTimes.TryRemove(endPoint, out long connectionTime))
                 return;
@@ -76,39 +66,20 @@ namespace BeatTogether.LiteNetLib
             {
                 ConnectionTime = connectionTime
             });
-            var emptyData = new SpanBufferReader();
-            HandleDisconnect(endPoint, reason, ref emptyData);
+            HandleDisconnect(endPoint, reason);
         }
 
-        public void Send(EndPoint endPoint, ReadOnlySpan<byte> message, DeliveryMethod method = DeliveryMethod.ReliableOrdered)
+        internal void HandleConnect(EndPoint endPoint, long connectionTime)
         {
-            var memory = new ReadOnlyMemory<byte>(message.ToArray());
-            if (method != DeliveryMethod.ReliableOrdered)
-                throw new NotImplementedException();
-            _reliableDispatcher.Send(endPoint, memory);
+            _connectionTimes[endPoint] = connectionTime;
+            ClientConnectEvent?.Invoke(endPoint);
         }
 
-        public void SendUnreliable(EndPoint endPoint, ReadOnlySpan<byte> message)
+        internal void HandleDisconnect(EndPoint endPoint, DisconnectReason reason)
         {
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
-            new UnreliableHeader().WriteTo(ref bufferWriter);
-            bufferWriter.WriteBytes(message);
-            SendAsync(endPoint, bufferWriter);
-        }
-
-        public void SendUnconnected(EndPoint endPoint, ReadOnlySpan<byte> message)
-        {
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
-            new UnconnectedHeader().WriteTo(ref bufferWriter);
-            bufferWriter.WriteBytes(message);
-            SendAsync(endPoint, bufferWriter);
-        }
-
-        public virtual void SendAsync(EndPoint endPoint, INetSerializable packet)
-        {
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
-            packet.WriteTo(ref bufferWriter);
-            SendAsync(endPoint, bufferWriter.Data);
+            _connectionTimes.TryRemove(endPoint, out _);
+            ClientCleanupEvent?.Invoke(endPoint);
+            ClientDisconnectEvent?.Invoke(endPoint, reason);
         }
     }
 }

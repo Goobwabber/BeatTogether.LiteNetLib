@@ -1,9 +1,11 @@
 using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Delegates;
+using BeatTogether.LiteNetLib.Dispatchers.Abstractions;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Models;
 using Krypton.Buffers;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Concurrent;
 using System.Net;
@@ -11,38 +13,36 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib
 {
-    public class LiteNetReliableDispatcher
+    public class ReliableDispatcher : IMessageDispatcher
     {
-        public event PacketDispatchHandler DispatchEvent;
+        public const byte ChannelId = (byte)DeliveryMethod.ReliableOrdered;
 
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, QueueWindow>> _channelWindows = new();
         private readonly LiteNetConfiguration _configuration;
+        private readonly LiteNetServer _server;
 
-        public LiteNetReliableDispatcher(
-            LiteNetConfiguration configuration)
+        public ReliableDispatcher(
+            LiteNetConfiguration configuration,
+            LiteNetServer server)
         {
             _configuration = configuration;
+            _server = server;
+
+            _server.ClientDisconnectEvent += (endPoint, _) => Cleanup(endPoint);
         }
 
-        public void Cleanup(EndPoint endPoint)
-            => _channelWindows.TryRemove(endPoint, out _);
+        public void Send(EndPoint endPoint, ref ReadOnlySpan<byte> message)
+            => Send(endPoint, new ReadOnlyMemory<byte>(message))
 
-        public void Acknowledge(EndPoint endPoint, byte channelId, int sequenceId)
-        {
-            if (_channelWindows.TryGetValue(endPoint, out var channels))
-                if (channels.TryGetValue(channelId, out var window))
-                    window.Dequeue(sequenceId);
-        }
-
-        public async void Send(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId = (int)DeliveryMethod.ReliableOrdered)
+        public async Task Send(EndPoint endPoint, ReadOnlyMemory<byte> message)
         {
             var window = _channelWindows.GetOrAdd(endPoint, _ => new())
-                .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
+                .GetOrAdd(ChannelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
             await window.Enqueue(out int queueIndex);
             await SendAndRetry(endPoint, message, channelId, queueIndex);
         }
 
-        protected async Task SendAndRetry(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int queueIndex)
+        private async Task SendAndRetry(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int queueIndex)
         {
             var retryCount = 0;
             while (_configuration.MaximumReliableRetries >= 0 ? retryCount++ < _configuration.MaximumReliableRetries : true) 
@@ -62,7 +62,7 @@ namespace BeatTogether.LiteNetLib
             }
         }
 
-        protected void Send(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int sequence)
+        private void Send(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int sequence)
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             new ChanneledHeader
@@ -71,7 +71,19 @@ namespace BeatTogether.LiteNetLib
                 Sequence = (ushort)sequence
             }.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message.Span);
-            DispatchEvent?.Invoke(endPoint, bufferWriter.Data);
+            _server.send
+
+            _server.SendAsync(endPoint, message.Span);
         }
+
+        public void Acknowledge(EndPoint endPoint, byte channelId, int sequenceId)
+        {
+            if (_channelWindows.TryGetValue(endPoint, out var channels))
+                if (channels.TryGetValue(channelId, out var window))
+                    window.Dequeue(sequenceId);
+        }
+
+        public void Cleanup(EndPoint endPoint)
+            => _channelWindows.TryRemove(endPoint, out _);
     }
 }

@@ -16,7 +16,7 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
         private readonly ILogger _logger;
 
         public TestServer(
-            LiteNetReliableDispatcher reliableDispatcher,
+            ReliableDispatcher reliableDispatcher,
             LiteNetPacketReader packetReader, 
             IServiceProvider serviceProvider,
             ILogger<TestServer> logger) 
