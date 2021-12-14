@@ -2,7 +2,6 @@
     <PropertyGroup>
 		<TargetFramework>net5.0</TargetFramework>
 		<LangVersion>9</LangVersion>
-		<PackageIcon>icon.png</PackageIcon>
 		<Authors>Goobwabber</Authors>
 		<Company>Goobwabber</Company>
 		<RepositoryUrl>https://github.com/Goobwabber/BeatTogether.LiteNetLib</RepositoryUrl>
