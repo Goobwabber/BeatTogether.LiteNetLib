@@ -25,13 +25,13 @@ namespace BeatTogether.LiteNetLib.Extensions
         public static void WriteVarLong(this ref SpanBufferWriter writer, long value) =>
             writer.WriteVarULong((value < 0L ? (ulong)((-value << 1) - 1L) : (ulong)(value << 1)));
 
-        public static void PutVarUInt(this ref SpanBufferWriter writer, uint value) =>
+        public static void WriteVarUInt(this ref SpanBufferWriter writer, uint value) =>
             writer.WriteVarULong(value);
 
-        public static void PutVarInt(this ref SpanBufferWriter writer, int value) =>
+        public static void WriteVarInt(this ref SpanBufferWriter writer, int value) =>
             writer.WriteVarLong(value);
 
-        public static void Put(this ref SpanBufferWriter writer, Color value)
+        public static void WriteColor(this ref SpanBufferWriter writer, Color value)
         {
             writer.WriteUInt8(value.R);
             writer.WriteUInt8(value.G);
