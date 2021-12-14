@@ -19,6 +19,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
@@ -36,6 +38,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
@@ -49,25 +53,18 @@ jobs:
     needs: [ build, test ]
     steps:
       - uses: actions/checkout@v2
+        with:
+          submodules: 'recursive'
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
           dotnet-version: 5.0.x
-      - name: Authenticate to GitHub Package Registry
-        id: Authenticate
-        run: dotnet nuget add source --username $REPOSITORY_OWNER --password $GITHUB_TOKEN --store-password-in-clear-text --name github $REPOSITORY_URL
+          source-url: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPOSITORY_OWNER: ${{ github.repository_owner }}
-          REPOSITORY_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
-      - name: Build
-        id: Build
-        run: dotnet build BeatTogether.LiteNetLib --configuration Release
+          NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Pack
         id: Pack
-        run: dotnet pack BeatTogether.LiteNetLib --configuration Release --output Publish -p:IsPack=true
-      - name: Publish Nuget to GitHub Package Registry
+        run: dotnet pack BeatTogether.LiteNetLib -c Release --output nupkgs -p:IsPack=true
+      - name: Publish
         id: Publish
-        run: dotnet nuget push ./Publish/*.nupkg -k ${GITHUB_TOKEN} -s "github" --skip-duplicate
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: dotnet nuget push nupkgs/*.nupkg -k ${GITHUB_TOKEN} -s "github" --skip-duplicate
