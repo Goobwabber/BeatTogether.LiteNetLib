@@ -61,4 +61,4 @@ jobs:
         run: dotnet pack BeatTogether.LiteNetLib -c Release --output nupkgs -p:IsPack=true
       - name: Publish
         id: Publish
-        run: dotnet nuget push nupkgs/*.nupkg -k ${GITHUB_TOKEN} -s "github" --skip-duplicate
+        run: dotnet nuget push nupkgs/*.nupkg -k ${GITHUB_TOKEN} --skip-duplicate
