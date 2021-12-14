@@ -22,7 +22,7 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: 5.0.12
+          dotnet-version: 5.0.x
       - name: Build
         id: Build
         run: dotnet build BeatTogether.LiteNetLib --configuration Release
@@ -39,7 +39,7 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: 5.0.12
+          dotnet-version: 5.0.x
       - name: Test
         id: Test
         run: dotnet test BeatTogether.LiteNetLib.Tests --logger GitHubActions
@@ -52,7 +52,7 @@ jobs:
       - name: Setup dotnet
         uses: actions/setup-dotnet@v1
         with:
-          dotnet-version: 5.0.12
+          dotnet-version: 5.0.x
       - name: Authenticate to GitHub Package Registry
         id: Authenticate
         run: dotnet nuget add source --username $REPOSITORY_OWNER --password $GITHUB_TOKEN --store-password-in-clear-text --name github $REPOSITORY_URL
