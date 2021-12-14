@@ -1,0 +1,73 @@
+name: Main
+on: 
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'BeatTogether.LiteNetLib/**'
+      - 'BeatTogether.LiteNetLib.sln'
+      - '.github/workflows/main.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'BeatTogether.LiteNetLib/**'
+      - 'BeatTogether.LiteNetLib.sln'
+      - '.github/workflows/main.yml'
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 5.0.12
+      - name: Build
+        id: Build
+        run: dotnet build BeatTogether.LiteNetLib --configuration Release
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v1
+        with:
+          name: ${{ steps.Build.outputs.filename }}
+          path: ${{ steps.Build.outputs.artifactpath }}
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 5.0.12
+      - name: Test
+        id: Test
+        run: dotnet test BeatTogether.LiteNetLib.Tests --logger GitHubActions
+  publish:
+    name: Publish
+    runs-on: ubuntu-latest
+    needs: [ build, test ]
+    steps:
+      - uses: actions/checkout@v2
+      - name: Setup dotnet
+        uses: actions/setup-dotnet@v1
+        with:
+          dotnet-version: 5.0.12
+      - name: Authenticate to GitHub Package Registry
+        id: Authenticate
+        run: dotnet nuget add source --username $REPOSITORY_OWNER --password $GITHUB_TOKEN --store-password-in-clear-text --name github $REPOSITORY_URL
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPOSITORY_OWNER: ${{ github.repository_owner }}
+          REPOSITORY_URL: https://nuget.pkg.github.com/${{ github.repository_owner }}/index.json
+      - name: Build
+        id: Build
+        run: dotnet build BeatTogether.LiteNetLib --configuration Release
+      - name: Pack
+        id: Pack
+        run: dotnet pack BeatTogether.LiteNetLib --configuration Release --output Publish -p:IsPack=true
+      - name: Publish Nuget to GitHub Package Registry
+        id: Publish
+        run: dotnet nuget push ./Publish/*.nupkg -k ${GITHUB_TOKEN} -s "github" --skip-duplicate
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
