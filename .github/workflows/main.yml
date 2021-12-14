@@ -27,12 +27,7 @@ jobs:
           dotnet-version: 5.0.x
       - name: Build
         id: Build
-        run: dotnet build BeatTogether.LiteNetLib --configuration Release
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v1
-        with:
-          name: ${{ steps.Build.outputs.filename }}
-          path: ${{ steps.Build.outputs.artifactpath }}
+        run: dotnet build BeatTogether.LiteNetLib -c Release
   test:
     name: Test
     runs-on: ubuntu-latest
@@ -46,7 +41,7 @@ jobs:
           dotnet-version: 5.0.x
       - name: Test
         id: Test
-        run: dotnet test BeatTogether.LiteNetLib.Tests --logger GitHubActions
+        run: dotnet test BeatTogether.LiteNetLib.Tests -c Release
   publish:
     name: Publish
     runs-on: ubuntu-latest
