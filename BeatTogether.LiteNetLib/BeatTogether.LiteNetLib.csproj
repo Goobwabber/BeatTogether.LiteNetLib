@@ -1,6 +1,14 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-        <TargetFramework>net5.0</TargetFramework>
+		<TargetFramework>net5.0</TargetFramework>
+		<LangVersion>9</LangVersion>
+		<PackageIcon>icon.png</PackageIcon>
+		<Authors>Goobwabber</Authors>
+		<Company>Goobwabber</Company>
+		<RepositoryUrl>https://github.com/Goobwabber/BeatTogether.LiteNetLib</RepositoryUrl>
+		<Version>0.1.0</Version>
+		<Nullable>enable</Nullable>
+		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="Krypton.Buffers" Version="2.0.3" />
