@@ -1,6 +1,7 @@
 using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Dispatchers;
 using BeatTogether.LiteNetLib.Extensions;
+using BeatTogether.LiteNetLib.Sources;
 using BeatTogether.LiteNetLib.Tests.Utilities;
 using Krypton.Buffers;
 using LiteNetLib;
@@ -24,11 +25,10 @@ namespace BeatTogether.LiteNetLib.Tests
 
         private ServiceProvider _serviceProvider;
         private TestServer _server;
-        private ConnectedDispatcher _reliableDispatcher;
-        private UnreliableDispatcher _unreliableDispatcher;
-        private UnconnectedDispatcher _unconnectedDispatcher;
+        private ConnectedMessageDispatcher _messageDispatcher;
+        private TestSource _messageSource;
 
-        public const int TestTimeout = 4000;
+        public const int TestTimeout = 10000;
 
         [SetUp]
         public void Init()
@@ -42,24 +42,22 @@ namespace BeatTogether.LiteNetLib.Tests
                 .AddLogging(builder =>
                     builder
                         .AddDebug()
+                        .AddConsole()
                         .SetMinimumLevel(LogLevel.Trace)
                     )
                 .AddSingleton<LiteNetConfiguration>()
                 .AddSingleton<TestServer>()
                 .AddHostedService(x => x.GetRequiredService<TestServer>()) 
                 .AddSingleton<LiteNetServer, TestServer>(x => x.GetRequiredService<TestServer>())
-                .AddSingleton<ConnectedDispatcher>()
-                .AddSingleton<UnreliableDispatcher>()
-                .AddSingleton<UnconnectedDispatcher>()
-                .AddSingleton<LiteNetAcknowledger>()
-                .AddSingleton<LiteNetPacketReader, DebugReader>()
+                .AddSingleton<ConnectedMessageDispatcher>()
+                .AddSingleton<TestSource>()
+                .AddSingleton<ConnectedMessageSource, TestSource>(x => x.GetRequiredService<TestSource>())
                 .AddLiteNetMessaging();
 
             _serviceProvider = serviceCollection.BuildServiceProvider();
             _server = _serviceProvider.GetService<TestServer>();
-            _reliableDispatcher = _serviceProvider.GetService<ConnectedDispatcher>();
-            _unreliableDispatcher = _serviceProvider.GetService<UnreliableDispatcher>();
-            _unconnectedDispatcher = _serviceProvider.GetService<UnconnectedDispatcher>();
+            _messageDispatcher = _serviceProvider.GetService<ConnectedMessageDispatcher>();
+            _messageSource = _serviceProvider.GetService<TestSource>();
             var clientLogger = _serviceProvider.GetService<ILogger<NetManager>>();
 
             _clientNetListener.NetworkErrorEvent += (endPoint, error) =>
@@ -124,7 +122,7 @@ namespace BeatTogether.LiteNetLib.Tests
             WaitUntilConnected();
             // Check if server can hold a connection for 15 seconds
             var time = Task.Delay(15000);
-            WaitUntil(() => time.IsCompleted); 
+            WaitWhileConnectedUntil(() => time.IsCompleted); 
         }
 
         [Test, Timeout(TestTimeout)]
@@ -143,7 +141,7 @@ namespace BeatTogether.LiteNetLib.Tests
 
             _server.ClientConnectEvent += endPoint =>
             {
-                _reliableDispatcher.Send(endPoint, new ReadOnlySpan<byte>(MakeTest(testSize, test)));
+                _messageDispatcher.Send(endPoint, new ReadOnlySpan<byte>(MakeTest(testSize, test)), Enums.DeliveryMethod.ReliableOrdered);
                 msgDelivered = true;
             };
             _clientNetListener.NetworkReceiveEvent += (endPoint, data, method) =>
@@ -184,7 +182,7 @@ namespace BeatTogether.LiteNetLib.Tests
                 int testData = 5;
                 peer.SendWithDeliveryEvent(MakeTest(testSize, test), 0, DeliveryMethod.ReliableUnordered, testData);
             };
-            _server.ReceiveConnectedEvent += (endPoint, data, method) =>
+            _messageSource.ReceiveConnectedEvent += (endPoint, data, method) =>
             {
                 var reader = new SpanBufferReader(data);
                 Assert.AreEqual(testSize, reader.RemainingSize);
@@ -215,7 +213,7 @@ namespace BeatTogether.LiteNetLib.Tests
 
             _server.ClientConnectEvent += endPoint =>
             {
-                _reliableDispatcher.Send(endPoint, new ReadOnlySpan<byte>(MakeTest(testSize, test)));
+                _messageDispatcher.Send(endPoint, new ReadOnlySpan<byte>(MakeTest(testSize, test)), Enums.DeliveryMethod.ReliableOrdered);
                 msgDelivered = true;
             };
             _clientNetListener.NetworkReceiveEvent += (endPoint, data, method) =>
@@ -257,7 +255,7 @@ namespace BeatTogether.LiteNetLib.Tests
                 int testData = 5;
                 peer.SendWithDeliveryEvent(MakeTest(testSize, test), 0, DeliveryMethod.ReliableUnordered, testData);
             };
-            _server.ReceiveConnectedEvent += (endPoint, data, method) =>
+            _messageSource.ReceiveConnectedEvent += (endPoint, data, method) =>
             {
                 var reader = new SpanBufferReader(data);
                 Assert.AreEqual(testSize, reader.RemainingSize);
@@ -274,15 +272,21 @@ namespace BeatTogether.LiteNetLib.Tests
         [Test, Timeout(TestTimeout)]
         public void DisconnectFromServerTest()
         {
+            var serverConnected = false;
             var clientDisconnected = false;
             var serverDisconnected = false;
             EndPoint clientEndPoint = null!;
             _clientNetListener.PeerDisconnectedEvent += (peer, info) => clientDisconnected = true;
             _server.ClientDisconnectEvent += (endPoint, reason) => serverDisconnected = true;
-            _server.ClientConnectEvent += endPoint => clientEndPoint = endPoint;
+            _server.ClientConnectEvent += endPoint =>
+            {
+                clientEndPoint = endPoint;
+                serverConnected = true;
+            };
 
             _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
             WaitUntilConnected();
+            WaitUntil(() => serverConnected);
             _server.Disconnect(clientEndPoint, Enums.DisconnectReason.DisconnectPeerCalled);
             WaitUntil(() => clientDisconnected && serverDisconnected);
             Assert.True(clientDisconnected);

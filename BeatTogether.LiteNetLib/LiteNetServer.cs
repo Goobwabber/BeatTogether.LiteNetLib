@@ -54,7 +54,7 @@ namespace BeatTogether.LiteNetLib
             ReceiveAsync();
         }
 
-        internal void HandlePacket(EndPoint endPoint, ReadOnlySpan<byte> buffer)
+        internal protected virtual void HandlePacket(EndPoint endPoint, ReadOnlySpan<byte> buffer)
         {
             if (buffer.Length > 0)
             {

@@ -15,20 +15,17 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
     {
         public const int Port = 9050;
 
-        public event Action<EndPoint, byte[], DeliveryMethod> ReceiveConnectedEvent;
-        public event Action<EndPoint, byte[], UnconnectedMessageType> ReceiveUnconnectedEvent;
-
         private readonly ILogger _logger;
 
         public TestServer(
             LiteNetConfiguration configuration,
-            LiteNetPacketReader packetReader, 
+            LiteNetPacketRegistry registry,
             IServiceProvider serviceProvider,
             ILogger<TestServer> logger) 
             : base(
                   new IPEndPoint(IPAddress.Loopback, Port),
                   configuration,
-                  packetReader, 
+                  registry,
                   serviceProvider)
         {
             _logger = logger;
@@ -48,6 +45,19 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             return Task.CompletedTask;
         }
 
+        protected override void HandlePacket(EndPoint endPoint, ReadOnlySpan<byte> buffer)
+        {
+            _logger.LogTrace($"Recieved from '{endPoint}': [{string.Join(", ", buffer.ToArray())}]");
+            try
+            {
+                base.HandlePacket(endPoint, buffer);
+            }
+            catch(ObjectDisposedException e)
+            {
+
+            }
+        }
+
         public override void SendAsync(EndPoint endPoint, INetSerializable packet)
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
@@ -64,18 +74,6 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
         public override void OnDisconnect(EndPoint endPoint, DisconnectReason reason)
         {
             _logger.LogInformation($"Client disconnected from '{endPoint}' with reason '{reason}'");
-        }
-
-        public override void OnReceiveConnected(EndPoint endPoint, ref SpanBufferReader reader, DeliveryMethod deliveryMethod)
-        {
-            _logger.LogInformation($"Received connected '{deliveryMethod}' message from '{endPoint}'");
-            ReceiveConnectedEvent?.Invoke(endPoint, reader.RemainingData.ToArray(), deliveryMethod);
-        }
-
-        public override void OnReceiveUnconnected(EndPoint endPoint, ref SpanBufferReader reader, UnconnectedMessageType messageType)
-        {
-            _logger.LogInformation($"Received unconnected '{messageType}' message from '{endPoint}'");
-            ReceiveUnconnectedEvent?.Invoke(endPoint, reader.RemainingData.ToArray(), messageType);
         }
 
         public override void OnLatencyUpdate(EndPoint endPoint, int latency)

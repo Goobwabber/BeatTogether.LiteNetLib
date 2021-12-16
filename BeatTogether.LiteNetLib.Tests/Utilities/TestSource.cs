@@ -1,0 +1,34 @@
+﻿using BeatTogether.LiteNetLib.Configuration;
+using BeatTogether.LiteNetLib.Enums;
+using BeatTogether.LiteNetLib.Sources;
+using Krypton.Buffers;
+using Microsoft.Extensions.Logging;
+using System;
+using System.Net;
+
+namespace BeatTogether.LiteNetLib.Tests.Utilities
+{
+    class TestSource : ConnectedMessageSource
+    {
+        public event Action<EndPoint, byte[], DeliveryMethod> ReceiveConnectedEvent;
+
+        private readonly ILogger _logger;
+
+        public TestSource(
+            LiteNetConfiguration configuration,
+            LiteNetServer server,
+            ILogger<TestSource> logger)
+            : base(
+                  configuration,
+                  server)
+        {
+            _logger = logger;
+        }
+
+        public override void OnReceive(EndPoint remoteEndPoint, ref SpanBufferReader reader, DeliveryMethod method)
+        {
+            _logger.LogInformation($"Received connected '{method}' message from '{remoteEndPoint}'");
+            ReceiveConnectedEvent?.Invoke(remoteEndPoint, reader.RemainingData.ToArray(), method);
+        }
+    }
+}
