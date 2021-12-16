@@ -2,6 +2,7 @@
 using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Models;
+using BeatTogether.LiteNetLib.Sources;
 using Krypton.Buffers;
 using System;
 using System.Collections.Concurrent;
@@ -14,26 +15,23 @@ namespace BeatTogether.LiteNetLib.Handlers
     {
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, ArrayWindow>> _channelWindows = new();
         private readonly LiteNetConfiguration _configuration;
-        private readonly LiteNetServer _server;
-        private readonly LiteNetAcknowledger _acknowledger;
+        private readonly ConnectedMessageSource _messageSource;
 
         public ChanneledPacketHandler(
             LiteNetConfiguration configuration,
-            LiteNetServer server,
-            LiteNetAcknowledger acknowledger)
+            ConnectedMessageSource messageSource)
         {
             _configuration = configuration;
-            _server = server;
-            _acknowledger = acknowledger;
+            _messageSource = messageSource;
         }
 
         public override Task Handle(EndPoint endPoint, ChanneledHeader packet, ref SpanBufferReader reader)
         {
+            if (_messageSource == null)
+                return Task.CompletedTask;
             if (packet.Sequence > _configuration.MaxSequence)
                 return Task.CompletedTask; // 'Bad sequence'
-            if (!_acknowledger.Acknowledge(endPoint, packet.ChannelId, packet.Sequence))
-                return Task.CompletedTask; // Already handled this packet
-            _server.OnReceiveConnected(endPoint, ref reader, (Enums.DeliveryMethod)packet.ChannelId);
+            _messageSource.Signal(endPoint, packet, ref reader);
             return Task.CompletedTask;
         }
     }

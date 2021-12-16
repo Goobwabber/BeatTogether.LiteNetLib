@@ -9,6 +9,7 @@ namespace BeatTogether.LiteNetLib.Headers
         public override PacketProperty Property { get; set; } = PacketProperty.Channeled;
         public ushort Sequence { get; set; }
         public byte ChannelId { get; set; }
+        public DeliveryMethod DeliveryMethod => (DeliveryMethod)ChannelId;
         public ushort FragmentId { get; set; }
         public ushort FragmentPart { get; set; }
         public ushort FragmentsTotal { get; set; }

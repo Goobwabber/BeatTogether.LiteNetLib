@@ -24,7 +24,7 @@ namespace BeatTogether.LiteNetLib.Tests
 
         private ServiceProvider _serviceProvider;
         private TestServer _server;
-        private ReliableDispatcher _reliableDispatcher;
+        private ConnectedDispatcher _reliableDispatcher;
         private UnreliableDispatcher _unreliableDispatcher;
         private UnconnectedDispatcher _unconnectedDispatcher;
 
@@ -48,7 +48,7 @@ namespace BeatTogether.LiteNetLib.Tests
                 .AddSingleton<TestServer>()
                 .AddHostedService(x => x.GetRequiredService<TestServer>()) 
                 .AddSingleton<LiteNetServer, TestServer>(x => x.GetRequiredService<TestServer>())
-                .AddSingleton<ReliableDispatcher>()
+                .AddSingleton<ConnectedDispatcher>()
                 .AddSingleton<UnreliableDispatcher>()
                 .AddSingleton<UnconnectedDispatcher>()
                 .AddSingleton<LiteNetAcknowledger>()
@@ -57,7 +57,7 @@ namespace BeatTogether.LiteNetLib.Tests
 
             _serviceProvider = serviceCollection.BuildServiceProvider();
             _server = _serviceProvider.GetService<TestServer>();
-            _reliableDispatcher = _serviceProvider.GetService<ReliableDispatcher>();
+            _reliableDispatcher = _serviceProvider.GetService<ConnectedDispatcher>();
             _unreliableDispatcher = _serviceProvider.GetService<UnreliableDispatcher>();
             _unconnectedDispatcher = _serviceProvider.GetService<UnconnectedDispatcher>();
             var clientLogger = _serviceProvider.GetService<ILogger<NetManager>>();

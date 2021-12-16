@@ -1,6 +1,7 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
+using BeatTogether.LiteNetLib.Sources;
 using Krypton.Buffers;
 using System.Net;
 using System.Threading.Tasks;
@@ -9,17 +10,18 @@ namespace BeatTogether.LiteNetLib.Handlers
 {
     public class BroadcastPacketHandler : BasePacketHandler<BroadcastHeader>
     {
-        private readonly LiteNetServer _server;
+        private readonly UnconnectedMessageSource _messageSource;
 
         public BroadcastPacketHandler(
-            LiteNetServer server)
+            UnconnectedMessageSource messageSource)
         {
-            _server = server;
+            _messageSource = messageSource;
         }
 
         public override Task Handle(EndPoint endPoint, BroadcastHeader packet, ref SpanBufferReader reader)
         {
-            _server.OnReceiveUnconnected(endPoint, ref reader, UnconnectedMessageType.Broadcast);
+            if (_messageSource != null)
+                _messageSource.Signal(endPoint, ref reader, UnconnectedMessageType.Broadcast);
             return Task.CompletedTask;
         }
     }

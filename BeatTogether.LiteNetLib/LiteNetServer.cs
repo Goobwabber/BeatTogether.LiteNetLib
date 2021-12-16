@@ -30,18 +30,18 @@ namespace BeatTogether.LiteNetLib
         private readonly ConcurrentDictionary<EndPoint, long> _connectionTimes = new();
 
         private readonly LiteNetConfiguration _configuration;
-        private readonly LiteNetPacketReader _packetReader;
+        private readonly LiteNetPacketRegistry _packetRegistry;
         private readonly IServiceProvider _serviceProvider;
 
         public LiteNetServer(
             IPEndPoint endPoint,
             LiteNetConfiguration configuration,
-            LiteNetPacketReader packetReader,
+            LiteNetPacketRegistry packetRegistry,
             IServiceProvider serviceProvider) 
             : base(endPoint)
         {
             _configuration = configuration;
-            _packetReader = packetReader;
+            _packetRegistry = packetRegistry;
             _serviceProvider = serviceProvider;
         }
 
@@ -59,7 +59,10 @@ namespace BeatTogether.LiteNetLib
             if (buffer.Length > 0)
             {
                 var bufferReader = new SpanBufferReader(buffer);
-                INetSerializable packet = _packetReader.ReadFrom(ref bufferReader);
+                PacketProperty property = (PacketProperty)(buffer[0] & 0x1f); // 0x1f 00011111
+                if (!_packetRegistry.TryCreatePacket(property, out var packet))
+                    return;
+                packet.ReadFrom(ref bufferReader);
                 var packetHandlerType = typeof(IPacketHandler<>)
                         .MakeGenericType(packet.GetType());
                 var packetHandler = _serviceProvider.GetService(packetHandlerType);
@@ -81,22 +84,6 @@ namespace BeatTogether.LiteNetLib
         /// <param name="endPoint">Endpoint that disconnected</param>
         /// <param name="reason">Reason for disconnect</param>
         public virtual void OnDisconnect(EndPoint endPoint, DisconnectReason reason) { }
-
-        /// <summary>
-        /// Called when a connected message is received
-        /// </summary>
-        /// <param name="endPoint">Endpoint message was received from</param>
-        /// <param name="reader">Message data</param>
-        /// <param name="deliveryMethod">Delivery method of packet</param>
-        public virtual void OnReceiveConnected(EndPoint endPoint, ref SpanBufferReader reader, DeliveryMethod deliveryMethod) { }
-
-        /// <summary>
-        /// Called when an unconnected message is received
-        /// </summary>
-        /// <param name="endPoint">Endpoint message was received from</param>
-        /// <param name="reader">Message data</param>
-        /// <param name="messageType">Message type</param>
-        public virtual void OnReceiveUnconnected(EndPoint endPoint, ref SpanBufferReader reader, UnconnectedMessageType messageType) { }
 
         /// <summary>
         /// Called when latency information is updated

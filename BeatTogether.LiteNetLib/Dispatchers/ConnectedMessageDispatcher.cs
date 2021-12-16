@@ -1,5 +1,4 @@
 using BeatTogether.LiteNetLib.Configuration;
-using BeatTogether.LiteNetLib.Dispatchers.Abstractions;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Models;
@@ -11,15 +10,13 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Dispatchers
 {
-    public class ReliableDispatcher : IMessageDispatcher, IDisposable
+    public class ConnectedMessageDispatcher : IDisposable
     {
-        public const byte ChannelId = (byte)DeliveryMethod.ReliableOrdered;
-
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, QueueWindow>> _channelWindows = new();
         private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetServer _server;
 
-        public ReliableDispatcher(
+        public ConnectedMessageDispatcher(
             LiteNetConfiguration configuration,
             LiteNetServer server)
         {
@@ -29,27 +26,33 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             _server.ClientDisconnectEvent += HandleDisconnect;
         }
 
-        public void Send(EndPoint endPoint, ReadOnlySpan<byte> message)
-            => _ = Send(endPoint, new ReadOnlyMemory<byte>(message.ToArray()));
-
-        public async Task Send(EndPoint endPoint, ReadOnlyMemory<byte> message)
+        public Task Send(EndPoint endPoint, ReadOnlySpan<byte> message, DeliveryMethod method)
         {
-            var window = _channelWindows.GetOrAdd(endPoint, _ => new())
-                .GetOrAdd(ChannelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
-            await window.Enqueue(out int queueIndex);
-            await SendAndRetry(endPoint, message, ChannelId, queueIndex);
+            if (method == DeliveryMethod.Unreliable)
+                return SendUnreliable(endPoint, message);
+            var channelId = (byte)method;
+            if (method == DeliveryMethod.Sequenced) {
+                var window = _channelWindows.GetOrAdd(endPoint, _ => new())
+                    .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
+                _ = window.Enqueue(out int queueIndex);
+                return SendChanneled(endPoint, message, channelId, queueIndex);
+            }
+            return SendAndRetry(endPoint, new ReadOnlyMemory<byte>(message.ToArray()), channelId);
         }
 
-        private async Task SendAndRetry(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int queueIndex)
+        private async Task SendAndRetry(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId)
         {
+            var window = _channelWindows.GetOrAdd(endPoint, _ => new())
+                .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
+            await window.Enqueue(out int queueIndex);
             var retryCount = 0;
             while (_configuration.MaximumReliableRetries >= 0 ? retryCount++ < _configuration.MaximumReliableRetries : true) 
             {
-                if (!_channelWindows.TryGetValue(endPoint, out var channels) || !channels.TryGetValue(channelId, out var window))
+                if (!_channelWindows.TryGetValue(endPoint, out var channels) || !channels.TryGetValue(channelId, out _))
                     return; // Channel destroyed, stop sending
 
                 var acknowledgementTask = window.WaitForDequeue(queueIndex);
-                Send(endPoint, message, channelId, queueIndex);
+                SendChanneled(endPoint, message, channelId, queueIndex);
                 await Task.WhenAny(
                     acknowledgementTask,
                     Task.Delay(_configuration.ReliableRetryDelay)
@@ -60,7 +63,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             }
         }
 
-        private void Send(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int sequence)
+        private void SendChanneled(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int sequence)
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             new ChanneledHeader
@@ -70,6 +73,30 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             }.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message.Span);
             _server.SendAsync(endPoint, bufferWriter.Data);
+        }
+
+        private Task SendChanneled(EndPoint endPoint, ReadOnlySpan<byte> message, byte channelId, int sequence)
+        {
+            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
+            new ChanneledHeader
+            {
+                ChannelId = channelId,
+                Sequence = (ushort)sequence
+            }.WriteTo(ref bufferWriter);
+            bufferWriter.WriteBytes(message);
+            _server.SendAsync(endPoint, bufferWriter.Data);
+            return Task.CompletedTask;
+        }
+
+        private Task SendUnreliable(EndPoint endPoint, ReadOnlySpan<byte> message)
+        {
+            if (message.Length > _configuration.MaxPacketSize)
+                throw new Exception();
+            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
+            new UnreliableHeader().WriteTo(ref bufferWriter);
+            bufferWriter.WriteBytes(message);
+            _server.SendAsync(endPoint, bufferWriter);
+            return Task.CompletedTask;
         }
 
         /// <summary>

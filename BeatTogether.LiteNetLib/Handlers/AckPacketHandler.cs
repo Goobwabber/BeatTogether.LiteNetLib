@@ -9,18 +9,20 @@ namespace BeatTogether.LiteNetLib.Handlers
 {
     public class AckPacketHandler : BasePacketHandler<AckHeader>
     {
-        private readonly ReliableDispatcher _reliableDispatcher;
+        private readonly ConnectedMessageDispatcher _messageDispatcher;
 
         public AckPacketHandler(
-            ReliableDispatcher reliableDispatcher)
+            ConnectedMessageDispatcher messageDispatcher)
         {
-            _reliableDispatcher = reliableDispatcher;
+            _messageDispatcher = messageDispatcher;
         }
 
         public override Task Handle(EndPoint endPoint, AckHeader packet, ref SpanBufferReader reader)
         {
+            if (_messageDispatcher == null)
+                return Task.CompletedTask;
             foreach (int acknowledgement in packet.Acknowledgements)
-                _reliableDispatcher.Acknowledge(endPoint, packet.ChannelId, acknowledgement);
+                _messageDispatcher.Acknowledge(endPoint, packet.ChannelId, acknowledgement);
             return Task.CompletedTask;
         }
     }
