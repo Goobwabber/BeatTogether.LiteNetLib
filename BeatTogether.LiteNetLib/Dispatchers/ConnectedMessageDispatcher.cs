@@ -5,13 +5,21 @@ using BeatTogether.LiteNetLib.Models;
 using Krypton.Buffers;
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Dispatchers
 {
     public class ConnectedMessageDispatcher : IDisposable
     {
+        public const int ChanneledHeaderSize = 4;
+        public const int FragmentedHeaderSize = ChanneledHeaderSize + 6;
+
+        private object _fragmentIdLock = new();
+        private ushort _fragmentId = 0;
+
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, QueueWindow>> _channelWindows = new();
         private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetServer _server;
@@ -37,10 +45,27 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 _ = window.Enqueue(out int queueIndex);
                 return SendChanneled(endPoint, message, channelId, queueIndex);
             }
-            return SendAndRetry(endPoint, new ReadOnlyMemory<byte>(message.ToArray()), channelId);
+            if (message.Length + ChanneledHeaderSize <= _configuration.MaxPacketSize)
+                return SendAndRetry(endPoint, new ReadOnlyMemory<byte>(message.ToArray()), channelId);
+            int maxMessageSize = _configuration.MaxPacketSize - FragmentedHeaderSize;
+            int fragmentCount = message.Length / maxMessageSize + ((message.Length % maxMessageSize == 0) ? 0 : 1);
+            if (fragmentCount > ushort.MaxValue) // ushort is used to identify each fragment
+                throw new Exception();
+
+            ushort fragmentId;
+            lock (_fragmentIdLock)
+            {
+                fragmentId = _fragmentId;
+                _fragmentId++;
+            }
+
+            List<Task> fragmentTasks = new();
+            for (ushort i = 0; i < fragmentCount; i++)
+                fragmentTasks.Add(SendAndRetry(endPoint, new ReadOnlyMemory<byte>(message.ToArray()), channelId, true, fragmentId, i, (ushort)fragmentCount));
+            return Task.WhenAll(fragmentTasks);
         }
 
-        private async Task SendAndRetry(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId)
+        private async Task SendAndRetry(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, bool fragmented = false, ushort fragmentId = 0, ushort fragmentPart = 0, ushort fragmentsTotal = 0)
         {
             var window = _channelWindows.GetOrAdd(endPoint, _ => new())
                 .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
@@ -52,7 +77,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                     return; // Channel destroyed, stop sending
 
                 var acknowledgementTask = window.WaitForDequeue(queueIndex);
-                SendChanneled(endPoint, message, channelId, queueIndex);
+                SendChanneled(endPoint, message, channelId, queueIndex, fragmented, fragmentId, fragmentPart, fragmentsTotal);
                 await Task.WhenAny(
                     acknowledgementTask,
                     Task.Delay(_configuration.ReliableRetryDelay)
@@ -63,13 +88,17 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             }
         }
 
-        private void SendChanneled(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int sequence)
+        private void SendChanneled(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int sequence, bool fragmented = false, ushort fragmentId = 0, ushort fragmentPart = 0, ushort fragmentsTotal = 0)
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             new ChanneledHeader
             {
+                IsFragmented = fragmented,
                 ChannelId = channelId,
-                Sequence = (ushort)sequence
+                Sequence = (ushort)sequence,
+                FragmentId = fragmentId,
+                FragmentPart = fragmentPart,
+                FragmentsTotal = fragmentsTotal
             }.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message.Span);
             _server.SendAsync(endPoint, bufferWriter.Data);
@@ -77,6 +106,8 @@ namespace BeatTogether.LiteNetLib.Dispatchers
 
         private Task SendChanneled(EndPoint endPoint, ReadOnlySpan<byte> message, byte channelId, int sequence)
         {
+            if (message.Length > _configuration.MaxPacketSize)
+                throw new Exception();
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             new ChanneledHeader
             {
