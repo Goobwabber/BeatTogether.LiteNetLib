@@ -147,8 +147,8 @@ namespace BeatTogether.LiteNetLib.Tests
             _clientNetListener.NetworkReceiveEvent += (endPoint, data, method) =>
             {
                 // 4 is the size of the channeled message header
-                Assert.AreEqual(testSize, data.RawDataSize - 4);
-                AssertTest(test, data.RawData, 4);
+                Assert.AreEqual(testSize, data.UserDataSize);
+                AssertTest(test, data.RawData, data.UserDataOffset);
                 msgReceived = true;
             };
 
@@ -219,8 +219,8 @@ namespace BeatTogether.LiteNetLib.Tests
             _clientNetListener.NetworkReceiveEvent += (endPoint, data, method) =>
             {
                 // 4 is the size of the channeled message header
-                Assert.AreEqual(testSize, data.RawDataSize - 4);
-                AssertTest(test, data.RawData, 4);
+                Assert.AreEqual(testSize, data.UserDataSize);
+                AssertTest(test, data.RawData, data.UserDataOffset);
                 msgReceived = true;
             };
 

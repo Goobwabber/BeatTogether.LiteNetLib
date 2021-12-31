@@ -58,12 +58,11 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             }
         }
 
-        public override void SendAsync(EndPoint endPoint, INetSerializable packet)
+        public override async Task SendAsync(EndPoint endPoint, ReadOnlyMemory<byte> buffer)
         {
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
-            packet.WriteTo(ref bufferWriter);
-            _logger.LogTrace($"Sending packet [{string.Join(", ", bufferWriter.Data.ToArray())}]");
-            SendAsync(endPoint, bufferWriter.Data);
+            await base.SendAsync(endPoint, buffer);
+            if (buffer.Length < 100)
+                _logger.LogTrace($"Sent packet [{string.Join(", ", buffer.ToArray())}]");
         }
 
         public override void OnConnect(EndPoint endPoint)

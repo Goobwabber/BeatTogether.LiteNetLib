@@ -61,7 +61,11 @@ namespace BeatTogether.LiteNetLib.Models
         /// <param name="index"></param>
         /// <returns>Task that is completed on dequeue</returns>
         public Task WaitForDequeue(int index)
-            => _dequeueTasks.GetOrAdd(index, _ => new()).Task;
+        {
+            if ((index - _windowPosition + _queueSize + _queueSize / 2) % _queueSize - _queueSize / 2 < 0)
+                return Task.CompletedTask;
+            return _dequeueTasks.GetOrAdd(index, _ => new()).Task;
+        }
 
         /// <summary>
         /// Dequeues a task at a specified index.

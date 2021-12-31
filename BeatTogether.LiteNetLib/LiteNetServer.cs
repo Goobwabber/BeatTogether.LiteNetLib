@@ -1,4 +1,4 @@
-﻿using BeatTogether.LiteNetLib.Abstractions;
+using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Delegates;
 using BeatTogether.LiteNetLib.Enums;
@@ -14,7 +14,7 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib
 {
-    public class LiteNetServer : UdpServer
+    public class LiteNetServer : ConcurrentUdpServer
     {
         // Milliseconds between every ping
         public const int PingDelay = 1000;
@@ -114,6 +114,19 @@ namespace BeatTogether.LiteNetLib
         }
 
         /// <summary>
+        /// Sends a raw serializable packe to an endpoint
+        /// </summary>
+        /// <param name="endPoint">Endpoint to send packet to</param>
+        /// <param name="packet">The raw data to send (must include LiteNetLib headers)</param>
+        /// <returns>Task that is completed when the packet has been sent</returns>
+        public virtual Task Send(EndPoint endPoint, INetSerializable packet)
+        {
+            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
+            packet.WriteTo(ref bufferWriter);
+            return SendAsync(endPoint, new ReadOnlyMemory<byte>(bufferWriter.Data.ToArray()));
+        }
+
+        /// <summary>
         /// Disconnects a connected endpoint
         /// </summary>
         /// <param name="endPoint">Endpoint to disconnect</param>
@@ -190,11 +203,11 @@ namespace BeatTogether.LiteNetLib
                         });
                     });
 
-                stopwatch.Start();
-                SendAsync(endPoint, new PingHeader
+                await Send(endPoint, new PingHeader
                 {
                     Sequence = (ushort)sequence
                 });
+                stopwatch.Start();
                 sequence = (sequence + 1) % _configuration.MaxSequence;
                 await Task.Delay(PingDelay);
             }
