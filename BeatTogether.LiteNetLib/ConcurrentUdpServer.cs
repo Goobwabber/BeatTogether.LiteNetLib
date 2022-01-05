@@ -23,31 +23,41 @@ namespace BeatTogether.LiteNetLib
             base.OnSent(endpoint, sent);
             if (_sendQueue.TryPeek(out var tcs) && !tcs.Task.IsCompleted)
                 throw new Exception();
-            lock (_sendLock)
-            {
-                _sendQueue.TryDequeue(out _); // dequeue send, complete
-            }
-            if (_sendQueue.TryPeek(out var nextTcs)) // trigger next send
-                nextTcs.SetResult();
+            SendNextInQueue();
         }
 
         public override bool SendAsync(EndPoint endpoint, ReadOnlySpan<byte> buffer)
         {
-            _ = SendAsync(endpoint, new ReadOnlyMemory<byte>(buffer.ToArray()));
+            _ = SendAsync(endpoint, new ReadOnlyMemory<byte>(buffer.ToArray()), CancellationToken.None);
             return true;
         }
 
-        public virtual async Task SendAsync(EndPoint endpoint, ReadOnlyMemory<byte> buffer)
+        public virtual async Task SendAsync(EndPoint endpoint, ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
         {
             var tcs = new TaskCompletionSource();
-            lock(_sendLock)
+            lock (_sendLock)
             {
                 _sendQueue.Enqueue(tcs);
                 if (_sendQueue.Count == 1)
                     tcs.SetResult();
             }
             await tcs.Task;
+            if (cancellationToken.IsCancellationRequested)
+            {
+                SendNextInQueue();
+                return;
+            }
             base.SendAsync(endpoint, buffer.Span);
+        }
+
+        private void SendNextInQueue()
+        {
+            lock (_sendLock)
+            {
+                _sendQueue.TryDequeue(out _); // dequeue send, complete
+            }
+            if (_sendQueue.TryPeek(out var nextTcs)) // trigger next send
+                nextTcs.SetResult();
         }
     }
 }

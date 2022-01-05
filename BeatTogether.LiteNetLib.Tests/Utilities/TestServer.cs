@@ -58,9 +58,9 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             }
         }
 
-        public override async Task SendAsync(EndPoint endPoint, ReadOnlyMemory<byte> buffer)
+        public override async Task SendAsync(EndPoint endPoint, ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
         {
-            await base.SendAsync(endPoint, buffer);
+            await base.SendAsync(endPoint, buffer, cancellationToken);
             if (buffer.Length < 100)
                 _logger.LogTrace($"Sent packet [{string.Join(", ", buffer.ToArray())}]");
         }

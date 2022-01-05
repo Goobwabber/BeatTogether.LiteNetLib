@@ -123,7 +123,7 @@ namespace BeatTogether.LiteNetLib
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             packet.WriteTo(ref bufferWriter);
-            return SendAsync(endPoint, new ReadOnlyMemory<byte>(bufferWriter.Data.ToArray()));
+            return SendAsync(endPoint, new ReadOnlyMemory<byte>(bufferWriter.Data.ToArray()), CancellationToken.None);
         }
 
         /// <summary>

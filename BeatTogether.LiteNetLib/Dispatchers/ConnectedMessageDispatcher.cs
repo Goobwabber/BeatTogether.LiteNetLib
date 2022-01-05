@@ -1,3 +1,4 @@
+using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
@@ -46,7 +47,8 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 return SendChanneled(endPoint, message, channelId, queueIndex);
             }
             if (message.Length + ChanneledHeaderSize <= _configuration.MaxPacketSize)
-                return SendAndRetry(endPoint, new ReadOnlyMemory<byte>(message.ToArray()), channelId);
+                return SendAndRetry(endPoint, new Memory<byte>(message.ToArray()), channelId);
+
             int maxMessageSize = _configuration.MaxPacketSize - FragmentedHeaderSize;
             int fragmentCount = message.Length / maxMessageSize + ((message.Length % maxMessageSize == 0) ? 0 : 1);
             if (fragmentCount > ushort.MaxValue) // ushort is used to identify each fragment
@@ -64,49 +66,53 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             for (ushort i = 0; i < fragmentCount; i++)
             {
                 var sliceSize = bufferReader.RemainingSize > maxMessageSize ? maxMessageSize : bufferReader.RemainingSize;
-                var memSlice = new ReadOnlyMemory<byte>(bufferReader.ReadBytes(sliceSize).ToArray());
+                var memSlice = new Memory<byte>(bufferReader.ReadBytes(sliceSize).ToArray());
                 fragmentTasks.Add(SendAndRetry(endPoint, memSlice, channelId, true, fragmentId, i, (ushort)fragmentCount));
             }
             return Task.WhenAll(fragmentTasks);
         }
 
-        private async Task SendAndRetry(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, bool fragmented = false, ushort fragmentId = 0, ushort fragmentPart = 0, ushort fragmentsTotal = 0)
+        private async Task SendAndRetry(EndPoint endPoint, Memory<byte> message, byte channelId, bool fragmented = false, ushort fragmentId = 0, ushort fragmentPart = 0, ushort fragmentsTotal = 0)
         {
             var window = _channelWindows.GetOrAdd(endPoint, _ => new())
                 .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
             await window.Enqueue(out int queueIndex);
+            var fullMessage = WriteHeader(new ChanneledHeader
+            {
+                IsFragmented = fragmented,
+                ChannelId = channelId,
+                Sequence = (ushort)queueIndex,
+                FragmentId = fragmentId,
+                FragmentPart = fragmentPart,
+                FragmentsTotal = fragmentsTotal
+            }, message);
+
             var retryCount = 0;
             while (_configuration.MaximumReliableRetries >= 0 ? retryCount++ < _configuration.MaximumReliableRetries : true) 
             {
                 if (!_channelWindows.TryGetValue(endPoint, out var channels) || !channels.TryGetValue(channelId, out _))
                     return; // Channel destroyed, stop sending
 
-                var acknowledgementTask = window.WaitForDequeue(queueIndex);
-                await SendChanneled(endPoint, message, channelId, queueIndex, fragmented, fragmentId, fragmentPart, fragmentsTotal);
+                var ackTask = window.WaitForDequeue(queueIndex);
+                var ackCts = new CancellationTokenSource();
+                _ = ackTask.ContinueWith(_ => ackCts.Cancel()); // Cancel if acknowledged
+                await _server.SendAsync(endPoint, fullMessage, ackCts.Token);
                 await Task.WhenAny(
-                    acknowledgementTask,
+                    ackTask,
                     Task.Delay(_configuration.ReliableRetryDelay)
                 );
-                if (acknowledgementTask.IsCompleted)
+                if (ackTask.IsCompleted)
                     break;
                 // Failed, try again
             }
         }
 
-        private Task SendChanneled(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int sequence, bool fragmented = false, ushort fragmentId = 0, ushort fragmentPart = 0, ushort fragmentsTotal = 0)
+        private Memory<byte> WriteHeader(INetSerializable header, Memory<byte> message)
         {
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
-            new ChanneledHeader
-            {
-                IsFragmented = fragmented,
-                ChannelId = channelId,
-                Sequence = (ushort)sequence,
-                FragmentId = fragmentId,
-                FragmentPart = fragmentPart,
-                FragmentsTotal = fragmentsTotal
-            }.WriteTo(ref bufferWriter);
-            bufferWriter.WriteBytes(message.Span);
-            return _server.SendAsync(endPoint, new ReadOnlyMemory<byte>(bufferWriter.Data.ToArray()));
+            var memoryWriter = new SpanBufferWriter(stackalloc byte[412]);
+            header.WriteTo(ref memoryWriter);
+            memoryWriter.WriteBytes(message.Span);
+            return new Memory<byte>(memoryWriter.Data.ToArray());
         }
 
         private Task SendChanneled(EndPoint endPoint, ReadOnlySpan<byte> message, byte channelId, int sequence)
