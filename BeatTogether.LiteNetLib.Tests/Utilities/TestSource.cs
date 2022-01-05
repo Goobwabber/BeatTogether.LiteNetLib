@@ -1,5 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Enums;
+using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Sources;
 using Krypton.Buffers;
 using Microsoft.Extensions.Logging;
@@ -23,6 +24,12 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
                   server)
         {
             _logger = logger;
+        }
+
+        public override void Signal(EndPoint remoteEndPoint, ChanneledHeader header, ref SpanBufferReader reader)
+        {
+            _logger.LogTrace($"Received connected message length '{reader.RemainingSize}' from '{remoteEndPoint}'");
+            base.Signal(remoteEndPoint, header, ref reader);
         }
 
         public override void OnReceive(EndPoint remoteEndPoint, ref SpanBufferReader reader, DeliveryMethod method)
