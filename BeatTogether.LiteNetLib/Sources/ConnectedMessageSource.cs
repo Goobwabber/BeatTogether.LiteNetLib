@@ -44,7 +44,7 @@ namespace BeatTogether.LiteNetLib.Sources
             _sendAcks = true; // Sometimes locked threads screw eachother, do to ensure only one ack gets sent
             var window = _channelWindows.GetOrAdd(remoteEndPoint, _ => new())
                 .GetOrAdd(header.ChannelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
-            var alreadyReceived = window.Add(header.Sequence);
+            var alreadyReceived = !window.Add(header.Sequence);
             var windowArray = window.GetWindow(out int windowPosition);
 
             if (_sendAcks)

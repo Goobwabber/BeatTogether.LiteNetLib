@@ -26,7 +26,11 @@ namespace BeatTogether.LiteNetLib.Handlers
             if (_messageDispatcher == null)
                 return Task.CompletedTask;
             foreach (int acknowledgement in packet.Acknowledgements)
-                _messageDispatcher.Acknowledge(endPoint, packet.ChannelId, (acknowledgement + packet.Sequence) % _configuration.MaxPacketSize);
+            {
+                // should just be `(packet.Sequence + acknowledgement) % _conguration.MaxPacketSize` but litenetlib does things weirdly
+                var sequenceId = (packet.Sequence + ((acknowledgement - (acknowledgement % _configuration.WindowSize) + _configuration.WindowSize) % _configuration.WindowSize)) % _configuration.MaxPacketSize;
+                _messageDispatcher.Acknowledge(endPoint, packet.ChannelId, sequenceId);
+            }
             return Task.CompletedTask;
         }
     }
