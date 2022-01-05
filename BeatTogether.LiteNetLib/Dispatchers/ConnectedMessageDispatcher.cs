@@ -87,15 +87,16 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 FragmentsTotal = fragmentsTotal
             }, message);
 
+            var ackTask = window.WaitForDequeue(queueIndex);
+            var ackCts = new CancellationTokenSource();
+            _ = ackTask.ContinueWith(_ => ackCts.Cancel()); // Cancel if acknowledged
+
             var retryCount = 0;
             while (_configuration.MaximumReliableRetries >= 0 ? retryCount++ < _configuration.MaximumReliableRetries : true) 
             {
                 if (!_channelWindows.TryGetValue(endPoint, out var channels) || !channels.TryGetValue(channelId, out _))
                     return; // Channel destroyed, stop sending
 
-                var ackTask = window.WaitForDequeue(queueIndex);
-                var ackCts = new CancellationTokenSource();
-                _ = ackTask.ContinueWith(_ => ackCts.Cancel()); // Cancel if acknowledged
                 await _server.SendAsync(endPoint, fullMessage, ackCts.Token);
                 await Task.WhenAny(
                     ackTask,
