@@ -5,7 +5,7 @@
 		<Authors>Goobwabber</Authors>
 		<Company>Goobwabber</Company>
 		<RepositoryUrl>https://github.com/Goobwabber/BeatTogether.LiteNetLib</RepositoryUrl>
-		<Version>0.1.2</Version>
+		<Version>0.2.0</Version>
 		<Nullable>enable</Nullable>
 		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
     </PropertyGroup>
