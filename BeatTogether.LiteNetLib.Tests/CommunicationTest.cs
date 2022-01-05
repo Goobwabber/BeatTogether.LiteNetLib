@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging;
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -27,12 +28,15 @@ namespace BeatTogether.LiteNetLib.Tests
         private TestServer _server;
         private ConnectedMessageDispatcher _messageDispatcher;
         private TestSource _messageSource;
+        private ILogger _logger;
 
         public const int TestTimeout = 10000;
 
         [SetUp]
         public void Init()
         {
+            var sw = new Stopwatch();
+            sw.Start();
             _clientNetListener = new EventBasedNetListener();
             _clientNetManager = new NetManager(_clientNetListener);
             _clientNetManager.Start();
@@ -58,6 +62,7 @@ namespace BeatTogether.LiteNetLib.Tests
             _server = _serviceProvider.GetService<TestServer>();
             _messageDispatcher = _serviceProvider.GetService<ConnectedMessageDispatcher>();
             _messageSource = _serviceProvider.GetService<TestSource>();
+            _logger = _serviceProvider.GetService<ILogger<CommunicationTest>>();
             var clientLogger = _serviceProvider.GetService<ILogger<NetManager>>();
 
             _clientNetListener.NetworkErrorEvent += (endPoint, error) =>
@@ -66,13 +71,20 @@ namespace BeatTogether.LiteNetLib.Tests
             };
 
             _server.StartAsync(CancellationToken.None);
+
+            sw.Stop();
+            _logger.LogInformation($"Setup took '{sw.Elapsed}'");
         }
 
         [TearDown]
         public void TearDown()
         {
+            var sw = new Stopwatch();
+            sw.Start();
             _clientNetManager.Stop();
             _serviceProvider.Dispose();
+            sw.Stop();
+            _logger.LogInformation($"Teardown took '{sw.Elapsed}'");
         }
 
 

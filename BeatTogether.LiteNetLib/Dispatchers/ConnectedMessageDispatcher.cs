@@ -97,13 +97,13 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 if (!_channelWindows.TryGetValue(endPoint, out var channels) || !channels.TryGetValue(channelId, out _))
                     return; // Channel destroyed, stop sending
 
+                if (ackTask.IsCompleted)
+                    break;
                 await _server.SendAsync(endPoint, fullMessage, ackCts.Token);
                 await Task.WhenAny(
                     ackTask,
                     Task.Delay(_configuration.ReliableRetryDelay)
                 );
-                if (ackTask.IsCompleted)
-                    break;
                 // Failed, try again
             }
         }

@@ -75,7 +75,7 @@ namespace BeatTogether.LiteNetLib.Models
         public bool Dequeue(int index)
         {
             bool dequeued = _taskQueue.TryRemove(index, out _);
-            if (_dequeueTasks.TryRemove(index, out TaskCompletionSource dequeueTask))
+            if (_dequeueTasks.TryRemove(index, out var dequeueTask))
                 dequeueTask.SetResult();
             Advance();
             return dequeued;

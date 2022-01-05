@@ -25,12 +25,18 @@ namespace BeatTogether.LiteNetLib.Handlers
         {
             if (_messageDispatcher == null)
                 return Task.CompletedTask;
-            foreach (int acknowledgement in packet.Acknowledgements)
+
+            // 0 to WindowSize - 1, values missing weren't acknowledged
+            foreach (var ack in packet.Acknowledgements)
             {
-                // should just be `(packet.Sequence + acknowledgement) % _conguration.MaxPacketSize` but litenetlib does things weirdly
-                var sequenceId = (packet.Sequence + ((acknowledgement - (acknowledgement % _configuration.WindowSize) + _configuration.WindowSize) % _configuration.WindowSize)) % _configuration.MaxPacketSize;
-                _messageDispatcher.Acknowledge(endPoint, packet.ChannelId, sequenceId);
+                // should just be '(packet.Sequence + acknowledgement) % _conguration.MaxPacketSize' but litenetlib does things weirdly
+                // my thought process: when 'packet.Sequence = 134' the '0'th ack should be the ack for '134'
+                // in actuality: when 'packet.Sequence = 134' the '134 % WindowSize' ack is the ack for '134'
+                // this is really stupid. 
+                var id = (packet.Sequence + (ack - packet.Sequence % _configuration.WindowSize + _configuration.WindowSize) % _configuration.WindowSize) % _configuration.MaxPacketSize;
+                _messageDispatcher.Acknowledge(endPoint, packet.ChannelId, id);
             }
+
             return Task.CompletedTask;
         }
     }

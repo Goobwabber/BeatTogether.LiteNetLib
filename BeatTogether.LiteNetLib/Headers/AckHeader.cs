@@ -26,8 +26,8 @@ namespace BeatTogether.LiteNetLib.Headers
             byte[] bytes = bufferReader.ReadBytes(AcknowledgementsSize).ToArray();
             for (int currentByte = 0; currentByte < bytes.Length; currentByte++)
                 for (int currentBit = 0; currentBit < 8; currentBit++)
-                    if ((bytes[currentByte] & (1 << currentBit)) == 1)
-                        Acknowledgements.Add(currentByte * currentBit);
+                    if ((bytes[currentByte] & (1 << currentBit)) != 0)
+                        Acknowledgements.Add((currentByte * 8) + currentBit);
         }
 
         public override void WriteTo(ref SpanBufferWriter bufferWriter)

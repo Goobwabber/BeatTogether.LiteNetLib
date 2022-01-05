@@ -49,6 +49,7 @@ namespace BeatTogether.LiteNetLib.Models
                 .Select(x => (x % _windowSize))
                 .ToList();
             // x % _windowSize should be (x - _windowPosition) % _queueSize but litenetlib bad
+            // refer to AckPacketHandler comment for more information
         }
 
         private void AdvanceTo(int position)
