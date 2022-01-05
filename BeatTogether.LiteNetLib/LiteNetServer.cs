@@ -22,8 +22,8 @@ namespace BeatTogether.LiteNetLib
         // Milliseconds without pong before client will timeout
         public const int TimeoutDelay = 5000;
 
-        public event ClientConnectHandler ClientConnectEvent;
-        public event ClientDisconnectHandler ClientDisconnectEvent;
+        public event ClientConnectHandler ClientConnectEvent = null!;
+        public event ClientDisconnectHandler ClientDisconnectEvent = null!;
 
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<int, TaskCompletionSource<long>>> _pongTasks = new();
         private readonly ConcurrentDictionary<EndPoint, CancellationTokenSource> _pingCts = new();
@@ -32,17 +32,20 @@ namespace BeatTogether.LiteNetLib
         private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetPacketRegistry _packetRegistry;
         private readonly IServiceProvider _serviceProvider;
+        private readonly IPacketLayer? _packetLayer;
 
         public LiteNetServer(
             IPEndPoint endPoint,
             LiteNetConfiguration configuration,
             LiteNetPacketRegistry packetRegistry,
-            IServiceProvider serviceProvider) 
+            IServiceProvider serviceProvider,
+            IPacketLayer? packetLayer = null) 
             : base(endPoint)
         {
             _configuration = configuration;
             _packetRegistry = packetRegistry;
             _serviceProvider = serviceProvider;
+            _packetLayer = packetLayer;
         }
 
         protected override void OnStarted()
@@ -56,6 +59,14 @@ namespace BeatTogether.LiteNetLib
 
         internal protected virtual void HandlePacket(EndPoint endPoint, ReadOnlySpan<byte> buffer)
         {
+            if (_packetLayer != null)
+            {
+                Span<byte> layerBuffer = new();
+                buffer.CopyTo(layerBuffer);
+                _packetLayer.ProcessInboundPacket(endPoint, layerBuffer);
+                buffer = layerBuffer;
+            }
+
             if (buffer.Length > 0)
             {
                 var bufferReader = new SpanBufferReader(buffer);
@@ -70,6 +81,18 @@ namespace BeatTogether.LiteNetLib
                     return;
                 ((IPacketHandler)packetHandler).Handle(endPoint, packet, ref bufferReader);
             }
+        }
+
+        public override Task SendAsync(EndPoint endPoint, ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+        {
+            if (_packetLayer != null)
+            {
+                Span<byte> layerBuffer = new();
+                buffer.Span.CopyTo(layerBuffer);
+                _packetLayer.ProcessInboundPacket(endPoint, layerBuffer);
+                buffer = new ReadOnlyMemory<byte>(layerBuffer.ToArray());
+            }
+            return base.SendAsync(endPoint, buffer, cancellationToken);
         }
 
         /// <summary>
