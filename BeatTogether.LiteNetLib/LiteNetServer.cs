@@ -61,12 +61,11 @@ namespace BeatTogether.LiteNetLib
         {
             if (_packetLayer != null)
             {
-                Span<byte> layerBuffer = new();
-                buffer.CopyTo(layerBuffer);
-                _packetLayer.ProcessInboundPacket(endPoint, layerBuffer);
+                Span<byte> layerBuffer = new(buffer.ToArray());
+                _packetLayer.ProcessInboundPacket(endPoint, ref layerBuffer);
                 buffer = layerBuffer;
             }
-
+            
             if (buffer.Length > 0)
             {
                 var bufferReader = new SpanBufferReader(buffer);
@@ -87,9 +86,8 @@ namespace BeatTogether.LiteNetLib
         {
             if (_packetLayer != null)
             {
-                Span<byte> layerBuffer = new();
-                buffer.Span.CopyTo(layerBuffer);
-                _packetLayer.ProcessInboundPacket(endPoint, layerBuffer);
+                Span<byte> layerBuffer = new(buffer.ToArray());
+                _packetLayer.ProcessInboundPacket(endPoint, ref layerBuffer);
                 buffer = new ReadOnlyMemory<byte>(layerBuffer.ToArray());
             }
             return base.SendAsync(endPoint, buffer, cancellationToken);
