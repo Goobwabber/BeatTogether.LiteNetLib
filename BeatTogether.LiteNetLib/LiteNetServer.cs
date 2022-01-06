@@ -53,11 +53,11 @@ namespace BeatTogether.LiteNetLib
 
         protected override void OnReceived(EndPoint endPoint, ReadOnlySpan<byte> buffer)
         {
-            HandlePacket(endPoint, buffer);
+            ReceivePacket(endPoint, buffer);
             ReceiveAsync();
         }
 
-        internal protected virtual void HandlePacket(EndPoint endPoint, ReadOnlySpan<byte> buffer)
+        private void ReceivePacket(EndPoint endPoint, ReadOnlySpan<byte> buffer)
         {
             if (_packetLayer != null)
             {
@@ -65,7 +65,12 @@ namespace BeatTogether.LiteNetLib
                 _packetLayer.ProcessInboundPacket(endPoint, ref layerBuffer);
                 buffer = layerBuffer;
             }
-            
+
+            HandlePacket(endPoint, buffer);
+        }
+
+        internal protected virtual void HandlePacket(EndPoint endPoint, ReadOnlySpan<byte> buffer)
+        {
             if (buffer.Length > 0)
             {
                 var bufferReader = new SpanBufferReader(buffer);
@@ -87,7 +92,7 @@ namespace BeatTogether.LiteNetLib
             if (_packetLayer != null)
             {
                 Span<byte> layerBuffer = new(buffer.ToArray());
-                _packetLayer.ProcessInboundPacket(endPoint, ref layerBuffer);
+                _packetLayer.ProcessOutBoundPacket(endPoint, ref layerBuffer);
                 buffer = new ReadOnlyMemory<byte>(layerBuffer.ToArray());
             }
             return base.SendAsync(endPoint, buffer, cancellationToken);
