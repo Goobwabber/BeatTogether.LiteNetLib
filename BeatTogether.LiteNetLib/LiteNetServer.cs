@@ -87,15 +87,15 @@ namespace BeatTogether.LiteNetLib
             }
         }
 
-        public override Task SendAsync(EndPoint endPoint, ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+        protected override void SendImmediate(EndPoint endPoint, ReadOnlySpan<byte> buffer)
         {
             if (_packetLayer != null)
             {
                 Span<byte> layerBuffer = new(buffer.ToArray());
                 _packetLayer.ProcessOutBoundPacket(endPoint, ref layerBuffer);
-                buffer = new ReadOnlyMemory<byte>(layerBuffer.ToArray());
+                buffer = layerBuffer;
             }
-            return base.SendAsync(endPoint, buffer, cancellationToken);
+            base.SendImmediate(endPoint, buffer);
         }
 
         /// <summary>

@@ -50,6 +50,9 @@ namespace BeatTogether.LiteNetLib
             base.SendAsync(endpoint, buffer.Span);
         }
 
+        protected virtual void SendImmediate(EndPoint endpoint, ReadOnlySpan<byte> buffer)
+            => base.SendAsync(endpoint, buffer);
+
         private void SendNextInQueue()
         {
             lock (_sendLock)
