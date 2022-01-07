@@ -168,6 +168,9 @@ namespace BeatTogether.LiteNetLib
             HandleDisconnect(endPoint, reason);
         }
 
+        public bool HasConnected(EndPoint endPoint)
+            => _connectionTimes.TryGetValue(endPoint, out _);
+
         internal void HandleConnect(EndPoint endPoint, long connectionTime)
         {
             _connectionTimes[endPoint] = connectionTime;

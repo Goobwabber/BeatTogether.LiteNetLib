@@ -34,7 +34,7 @@ namespace BeatTogether.LiteNetLib.Handlers
 
             // TODO: There is some extra logic here in litenetlib that may be needed (NetManager.ProcessConnectRequest)
 
-            if (_server.ShouldAcceptConnection(endPoint, ref reader))
+            if (_server.HasConnected(endPoint) || _server.ShouldAcceptConnection(endPoint, ref reader))
             {
                 _logger.LogTrace($"Accepting request from {endPoint}");
                 _server.SendAsync(endPoint, new ConnectAcceptHeader
