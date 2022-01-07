@@ -1,4 +1,4 @@
-﻿using BeatTogether.LiteNetLib.Abstractions;
+using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Headers;
 using Krypton.Buffers;
 using Microsoft.Extensions.Logging;
@@ -34,7 +34,8 @@ namespace BeatTogether.LiteNetLib.Handlers
 
             // TODO: There is some extra logic here in litenetlib that may be needed (NetManager.ProcessConnectRequest)
 
-            if (_server.HasConnected(endPoint) || _server.ShouldAcceptConnection(endPoint, ref reader))
+            bool alreadyExists = _server.HasConnected(endPoint);
+            if (alreadyExists || _server.ShouldAcceptConnection(endPoint, ref reader))
             {
                 _logger.LogTrace($"Accepting request from {endPoint}");
                 _server.SendAsync(endPoint, new ConnectAcceptHeader
@@ -43,7 +44,8 @@ namespace BeatTogether.LiteNetLib.Handlers
                     RequestConnectionNumber = packet.ConnectionNumber,
                     IsReusedPeer = false // TODO: implement 'peer' reusing (probably not necessary)
                 });
-                _server.HandleConnect(endPoint, packet.ConnectionTime);
+                if (!alreadyExists)
+                    _server.HandleConnect(endPoint, packet.ConnectionTime);
                 return Task.CompletedTask;
             }
             _logger.LogTrace($"Rejecting request from {endPoint}");
