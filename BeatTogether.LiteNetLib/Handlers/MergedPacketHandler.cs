@@ -18,7 +18,7 @@ namespace BeatTogether.LiteNetLib.Handlers
 
         public override Task Handle(EndPoint endPoint, MergedHeader packet, ref SpanBufferReader reader)
         {
-            while (reader.RemainingSize <= 0)
+            while (reader.RemainingSize > 0)
             {
                 ushort size = reader.ReadUInt16();
                 var newPacket = reader.ReadBytes(size);
