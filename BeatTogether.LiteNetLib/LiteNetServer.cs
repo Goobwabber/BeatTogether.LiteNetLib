@@ -16,12 +16,6 @@ namespace BeatTogether.LiteNetLib
 {
     public class LiteNetServer : ConcurrentUdpServer
     {
-        // Milliseconds between every ping
-        public const int PingDelay = 1000;
-
-        // Milliseconds without pong before client will timeout
-        public const int TimeoutDelay = 5000;
-
         public event ClientConnectHandler ClientConnectEvent = null!;
         public event ClientDisconnectHandler ClientDisconnectEvent = null!;
 
@@ -225,7 +219,7 @@ namespace BeatTogether.LiteNetLib
                         var latency = stopwatch.ElapsedMilliseconds / 2;
                         OnLatencyUpdate(endPoint, (int)latency);
 
-                        Task.Delay(TimeoutDelay, timeoutCts.Token).ContinueWith(timeout =>
+                        Task.Delay(_configuration.TimeoutDelay, timeoutCts.Token).ContinueWith(timeout =>
                         {
                             if (!timeout.IsCanceled)
                                 Disconnect(endPoint, DisconnectReason.Timeout);
@@ -238,7 +232,7 @@ namespace BeatTogether.LiteNetLib
                 });
                 stopwatch.Start();
                 sequence = (sequence + 1) % _configuration.MaxSequence;
-                await Task.Delay(PingDelay);
+                await Task.Delay(_configuration.PingDelay);
             }
         }
     }
