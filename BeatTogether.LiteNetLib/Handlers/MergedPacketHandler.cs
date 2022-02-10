@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Handlers
 {
-    class MergedPacketHandler : BasePacketHandler<MergedHeader>
+    public class MergedPacketHandler : BasePacketHandler<MergedHeader>
     {
         private readonly LiteNetServer _server;
 

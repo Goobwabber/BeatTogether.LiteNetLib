@@ -33,7 +33,7 @@ namespace BeatTogether.LiteNetLib.Handlers
                 // my thought process: when 'packet.Sequence = 134' the '0'th ack should be the ack for '134'
                 // in actuality: when 'packet.Sequence = 134' the '134 % WindowSize' ack is the ack for '134'
                 // this is really stupid. 
-                var id = (packet.Sequence + (ack - packet.Sequence % _configuration.WindowSize + _configuration.WindowSize) % _configuration.WindowSize) % _configuration.MaxPacketSize;
+                var id = (packet.Sequence + (ack - packet.Sequence % _configuration.WindowSize + _configuration.WindowSize) % _configuration.WindowSize) % _configuration.MaxSequence;
                 _messageDispatcher.Acknowledge(endPoint, packet.ChannelId, id);
             }
 
