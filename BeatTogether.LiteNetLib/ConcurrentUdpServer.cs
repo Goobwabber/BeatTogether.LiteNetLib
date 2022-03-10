@@ -9,8 +9,7 @@ namespace BeatTogether.LiteNetLib
 {
     public class ConcurrentUdpServer : UdpServer
     {
-        private object _sendLock = new();
-        private readonly ConcurrentQueue<TaskCompletionSource> _sendQueue = new();
+        private readonly SemaphoreSlim _sendSemaphore = new(1);
 
         public ConcurrentUdpServer(
             IPEndPoint endPoint)
@@ -21,9 +20,7 @@ namespace BeatTogether.LiteNetLib
         protected override void OnSent(EndPoint endpoint, long sent)
         {
             base.OnSent(endpoint, sent);
-            if (_sendQueue.TryPeek(out var tcs) && !tcs.Task.IsCompleted)
-                throw new Exception();
-            SendNextInQueue();
+            _sendSemaphore.Release();
         }
 
         public override bool SendAsync(EndPoint endpoint, ReadOnlySpan<byte> buffer)
@@ -34,17 +31,10 @@ namespace BeatTogether.LiteNetLib
 
         public virtual async Task SendAsync(EndPoint endpoint, ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
         {
-            var tcs = new TaskCompletionSource();
-            lock (_sendLock)
-            {
-                _sendQueue.Enqueue(tcs);
-                if (_sendQueue.Count == 1)
-                    tcs.SetResult();
-            }
-            await tcs.Task;
+            await _sendSemaphore.WaitAsync();
             if (cancellationToken.IsCancellationRequested)
             {
-                SendNextInQueue();
+                _sendSemaphore.Release();
                 return;
             }
             SendImmediate(endpoint, buffer.Span);
@@ -52,15 +42,5 @@ namespace BeatTogether.LiteNetLib
 
         protected virtual void SendImmediate(EndPoint endpoint, ReadOnlySpan<byte> buffer)
             => base.SendAsync(endpoint, buffer);
-
-        private void SendNextInQueue()
-        {
-            lock (_sendLock)
-            {
-                _sendQueue.TryDequeue(out _); // dequeue send, complete
-            }
-            if (_sendQueue.TryPeek(out var nextTcs)) // trigger next send
-                nextTcs.SetResult();
-        }
     }
 }

@@ -41,7 +41,7 @@ namespace BeatTogether.LiteNetLib.Models
         {
             lock (_queuePositionLock)
             {
-                _queuePosition = _queuePosition + 1 % _queueSize;
+                _queuePosition = (_queuePosition + 1) % _queueSize;
                 index = _queuePosition;
             }
             return EnqueueAtIndex(index);

@@ -49,7 +49,6 @@ namespace BeatTogether.LiteNetLib.Sources
 
             if (_sendAcks)
             {
-                //if (ack.Acknowledgements.Count == _configuration.WindowSize && ack.Sequence % _configuration.WindowSize == 0) // LiteNetLib is dogshit lol
                 _server.SendAsync(remoteEndPoint, new AckHeader
                 {
                     Sequence = (ushort)windowPosition,
