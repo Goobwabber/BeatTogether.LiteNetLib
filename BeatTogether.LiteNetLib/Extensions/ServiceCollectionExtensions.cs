@@ -10,16 +10,16 @@ namespace BeatTogether.LiteNetLib.Extensions
         public static IServiceCollection AddLiteNetMessaging(this IServiceCollection services) =>
             services
                 .AddSingleton<LiteNetPacketRegistry>()
-                .AddTransient<IPacketHandler<AckHeader>, AckPacketHandler>()
-                .AddTransient<IPacketHandler<BroadcastHeader>, BroadcastPacketHandler>()
-                .AddTransient<IPacketHandler<ChanneledHeader>, ChanneledPacketHandler>()
-                .AddTransient<IPacketHandler<ConnectRequestHeader>, ConnectRequestHandler>()
-                .AddTransient<IPacketHandler<DisconnectHeader>, DisconnectPacketHandler>()
-                .AddTransient<IPacketHandler<MergedHeader>, MergedPacketHandler>()
-                .AddTransient<IPacketHandler<MtuCheckHeader>, MtuCheckPacketHandler>()
-                .AddTransient<IPacketHandler<PingHeader>, PingHandler>()
-                .AddTransient<IPacketHandler<PongHeader>, PongHandler>()
-                .AddTransient<IPacketHandler<UnconnectedHeader>, UnconnectedPacketHandler>()
-                .AddTransient<IPacketHandler<UnreliableHeader>, UnreliablePacketHandler>();
+                .AddSingleton<IPacketHandler<AckHeader>, AckPacketHandler>()
+                .AddSingleton<IPacketHandler<BroadcastHeader>, BroadcastPacketHandler>()
+                .AddSingleton<IPacketHandler<ChanneledHeader>, ChanneledPacketHandler>()
+                .AddSingleton<IPacketHandler<ConnectRequestHeader>, ConnectRequestHandler>()
+                .AddSingleton<IPacketHandler<DisconnectHeader>, DisconnectPacketHandler>()
+                .AddSingleton<IPacketHandler<MergedHeader>, MergedPacketHandler>()
+                .AddSingleton<IPacketHandler<MtuCheckHeader>, MtuCheckPacketHandler>()
+                .AddSingleton<IPacketHandler<PingHeader>, PingHandler>()
+                .AddSingleton<IPacketHandler<PongHeader>, PongHandler>()
+                .AddSingleton<IPacketHandler<UnconnectedHeader>, UnconnectedPacketHandler>()
+                .AddSingleton<IPacketHandler<UnreliableHeader>, UnreliablePacketHandler>();
     }
 }
