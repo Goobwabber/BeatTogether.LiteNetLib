@@ -48,7 +48,9 @@ namespace BeatTogether.LiteNetLib
         protected override void OnReceived(EndPoint endPoint, ReadOnlySpan<byte> buffer)
         {
             ReceivePacket(endPoint, buffer);
-            ReceiveAsync();
+
+            // Important: Receive using thread pool is necessary here to avoid stack overflow with Socket.ReceiveFromAsync() method!
+            ThreadPool.QueueUserWorkItem(o => { ReceiveAsync(); });
         }
 
         private void ReceivePacket(EndPoint endPoint, ReadOnlySpan<byte> buffer)
