@@ -59,10 +59,10 @@ namespace BeatTogether.LiteNetLib.Models
                 var posRelative = (position - _windowPosition + _queueSize * 1.5) % _queueSize - _queueSize / 2;
                 if (posRelative < _windowSize)
                     return; // Do not need to advance
-                var targetPosition = (position - _windowSize + 1) % _queueSize;
+                var targetPosition = (position - _windowSize + 1 + _queueSize) % _queueSize;
                 while (_windowPosition != targetPosition)
                 {
-                    _acknowledgements.TryRemove((_windowPosition + _windowSize) % _queueSize);
+                    _acknowledgements.TryRemove(_windowPosition);
                     _windowPosition = (_windowPosition + 1) % _queueSize;
                 }
             }
