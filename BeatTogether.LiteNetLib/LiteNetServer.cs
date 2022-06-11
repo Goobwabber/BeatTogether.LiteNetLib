@@ -170,7 +170,7 @@ namespace BeatTogether.LiteNetLib
         internal void HandleConnect(EndPoint endPoint, long connectionTime)
         {
             _connectionTimes[endPoint] = connectionTime;
-            PingClient(endPoint);
+            Task.Run(async () => await PingClient(endPoint));
             OnConnect(endPoint);
             ClientConnectEvent?.Invoke(endPoint);
         }
@@ -202,7 +202,7 @@ namespace BeatTogether.LiteNetLib
         /// Will disconnect the client if not received a pong after specified timeout
         /// </summary>
         /// <param name="endPoint">Client to send pings to</param>
-        private async void PingClient(EndPoint endPoint)
+        private async Task PingClient(EndPoint endPoint)
         {
             CancellationTokenSource timeoutCts = new CancellationTokenSource();
 
