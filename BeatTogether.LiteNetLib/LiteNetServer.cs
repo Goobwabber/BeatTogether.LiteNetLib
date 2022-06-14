@@ -4,7 +4,6 @@ using BeatTogether.LiteNetLib.Delegates;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using Krypton.Buffers;
-using NetCoreServer;
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;

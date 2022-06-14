@@ -15,10 +15,7 @@
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
     </ItemGroup>
     <ItemGroup>
-        <ProjectReference Include="..\dependencies\NetCoreServer\source\NetCoreServer\NetCoreServer.csproj">
-            <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
-            <IncludeAssets>NetCoreServer.dll</IncludeAssets>
-        </ProjectReference>
+      <ProjectReference Include="..\..\NetCoreServer\source\NetCoreServer\NetCoreServer.csproj" />
     </ItemGroup>
 	<Target DependsOnTargets="ResolveReferences" Name="CopyProjectReferencesToPackage">
 		<ItemGroup>

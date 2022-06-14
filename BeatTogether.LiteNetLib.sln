@@ -1,15 +1,15 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.30717.126
+# Visual Studio Version 17
+VisualStudioVersion = 17.1.32414.318
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeatTogether.LiteNetLib", "BeatTogether.LiteNetLib\BeatTogether.LiteNetLib.csproj", "{9EB57C40-309B-461B-A7F4-24EC4C8EE21A}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dependencies", "dependencies", "{68C43D6A-C8F7-4BE0-96DB-3B576B666C8E}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetCoreServer", "dependencies\NetCoreServer\source\NetCoreServer\NetCoreServer.csproj", "{5C1D006F-2301-47A7-9C67-9CF16A888D8B}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeatTogether.LiteNetLib.Tests", "BeatTogether.LiteNetLib.Tests\BeatTogether.LiteNetLib.Tests.csproj", "{AD7F1452-49FB-4B36-BC76-5CF6C21618CB}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BeatTogether.LiteNetLib.Tests", "BeatTogether.LiteNetLib.Tests\BeatTogether.LiteNetLib.Tests.csproj", "{AD7F1452-49FB-4B36-BC76-5CF6C21618CB}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "NetCoreServer", "..\NetCoreServer\source\NetCoreServer\NetCoreServer.csproj", "{ACF508E9-F6B5-4744-AA78-DD6BEE3B540E}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,20 +21,20 @@ Global
 		{9EB57C40-309B-461B-A7F4-24EC4C8EE21A}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{9EB57C40-309B-461B-A7F4-24EC4C8EE21A}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{9EB57C40-309B-461B-A7F4-24EC4C8EE21A}.Release|Any CPU.Build.0 = Release|Any CPU
-		{5C1D006F-2301-47A7-9C67-9CF16A888D8B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{5C1D006F-2301-47A7-9C67-9CF16A888D8B}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{5C1D006F-2301-47A7-9C67-9CF16A888D8B}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{5C1D006F-2301-47A7-9C67-9CF16A888D8B}.Release|Any CPU.Build.0 = Release|Any CPU
 		{AD7F1452-49FB-4B36-BC76-5CF6C21618CB}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{AD7F1452-49FB-4B36-BC76-5CF6C21618CB}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AD7F1452-49FB-4B36-BC76-5CF6C21618CB}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AD7F1452-49FB-4B36-BC76-5CF6C21618CB}.Release|Any CPU.Build.0 = Release|Any CPU
+		{ACF508E9-F6B5-4744-AA78-DD6BEE3B540E}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{ACF508E9-F6B5-4744-AA78-DD6BEE3B540E}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{ACF508E9-F6B5-4744-AA78-DD6BEE3B540E}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{ACF508E9-F6B5-4744-AA78-DD6BEE3B540E}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(NestedProjects) = preSolution
-		{5C1D006F-2301-47A7-9C67-9CF16A888D8B} = {68C43D6A-C8F7-4BE0-96DB-3B576B666C8E}
+		{ACF508E9-F6B5-4744-AA78-DD6BEE3B540E} = {68C43D6A-C8F7-4BE0-96DB-3B576B666C8E}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {3047F9A3-8F7F-403D-87ED-9CB274A0D683}
