@@ -5,7 +5,7 @@
 		<Authors>Goobwabber</Authors>
 		<Company>Goobwabber</Company>
 		<RepositoryUrl>https://github.com/Goobwabber/BeatTogether.LiteNetLib</RepositoryUrl>
-		<Version>0.3.3</Version>
+		<Version>0.3.4</Version>
 		<Nullable>enable</Nullable>
 		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
     </PropertyGroup>
@@ -15,7 +15,7 @@
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
     </ItemGroup>
     <ItemGroup>
-      <ProjectReference Include="..\dependencies\NetCoreServer\source\NetCoreServer\NetCoreServer.csproj" />
+      <ProjectReference Include="..\NetCoreServer\NetCoreServer.csproj" />
     </ItemGroup>
 	<Target DependsOnTargets="ResolveReferences" Name="CopyProjectReferencesToPackage">
 		<ItemGroup>
