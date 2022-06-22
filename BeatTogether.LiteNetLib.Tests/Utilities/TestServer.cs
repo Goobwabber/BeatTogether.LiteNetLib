@@ -13,7 +13,7 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
 {
     public class TestServer : LiteNetServer, IHostedService
     {
-        public const int Port = 9050;
+        public const int _Port = 9050;
 
         private readonly ILogger _logger;
 
@@ -23,10 +23,10 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             IServiceProvider serviceProvider,
             ILogger<TestServer> logger) 
             : base(
-                  new IPEndPoint(IPAddress.Loopback, Port),
+                  new IPEndPoint(IPAddress.Loopback, _Port),
                   configuration,
                   registry,
-                  serviceProvider)
+                  serviceProvider,4,false)
         {
             _logger = logger;
         }
@@ -58,11 +58,12 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             }
         }
 
-        public override async Task SendAsync(EndPoint endPoint, ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+        public override async Task<bool> SendAsync(EndPoint endPoint, ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
         {
-            await base.SendAsync(endPoint, buffer, cancellationToken);
+            bool value = await base.SendAsync(endPoint, buffer, cancellationToken);
             if (buffer.Length < 100)
                 _logger.LogTrace($"Sent packet [{string.Join(", ", buffer.ToArray())}]");
+            return value;
         }
 
         public override void OnConnect(EndPoint endPoint)
