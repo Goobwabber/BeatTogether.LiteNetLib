@@ -1,3 +1,3 @@
-[submodule "dependencies/Udpserver/AsyncUdpServer"]
-	path = dependencies/Udpserver/AsyncUdpServer
+[submodule "dependencies/UdpServer/AsyncUdpServer"]
+	path = dependencies/UdpServer/AsyncUdpServer
 	url = https://github.com/cubicgraphics/AsyncUdpServer.git
