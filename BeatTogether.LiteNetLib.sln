@@ -11,7 +11,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BeatTogether.LNLTest", "Bea
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "dependencies", "dependencies", "{F9B0ABC8-1722-48E7-8EA2-7BB6FC61820D}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AsyncUdpServer", "..\UdpServer\AsyncUdpServer\AsyncUdpServer\AsyncUdpServer.csproj", "{54E30876-4310-40BA-BA44-5EEA5C901523}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "AsyncUdpServer", "dependencies\AsyncUdpServer\AsyncUdpServer\AsyncUdpServer.csproj", "{54E30876-4310-40BA-BA44-5EEA5C901523}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
