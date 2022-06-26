@@ -15,7 +15,7 @@
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
     </ItemGroup>
     <ItemGroup>
-      <ProjectReference Include="..\..\UdpServer\AsyncUdpServer\AsyncUdpServer\AsyncUdpServer.csproj">
+		<ProjectReference Include="..\dependencies\AsyncUdpServer\AsyncUdpServer\AsyncUdpServer.csproj">
 	        <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
             <IncludeAssets>AsyncUdpServer.dll</IncludeAssets>
         </ProjectReference>
