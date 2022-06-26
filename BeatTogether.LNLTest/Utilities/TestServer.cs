@@ -16,7 +16,7 @@ public class TestServer : LiteNetServer, IHostedService
 
     public TestServer(LiteNetConfiguration configuration, LiteNetPacketRegistry packetRegistry,
         IServiceProvider serviceProvider, ILogger<TestServer> logger) : base(
-        new IPEndPoint(IPAddress.Loopback, _Port), configuration, packetRegistry, serviceProvider, 4, true)
+        new IPEndPoint(IPAddress.Loopback, _Port), configuration, packetRegistry, serviceProvider)
     {
         _logger = logger;
     }

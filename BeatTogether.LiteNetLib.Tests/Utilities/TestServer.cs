@@ -26,7 +26,7 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
                   new IPEndPoint(IPAddress.Loopback, _Port),
                   configuration,
                   registry,
-                  serviceProvider, 4, false)
+                  serviceProvider)
         {
             _logger = logger;
         }

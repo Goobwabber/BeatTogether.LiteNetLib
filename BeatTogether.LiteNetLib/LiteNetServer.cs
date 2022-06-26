@@ -34,10 +34,8 @@ namespace BeatTogether.LiteNetLib
             LiteNetConfiguration configuration,
             LiteNetPacketRegistry packetRegistry,
             IServiceProvider serviceProvider,
-            int AsyncCount,
-            bool AsyncReceive,
             IPacketLayer? packetLayer = null)
-            : base(endPoint, AsyncCount, AsyncReceive)
+            : base(endPoint, configuration.MaxAsyncSocketOperations, configuration.MaxAsyncSocketOperations > 1)
         {
             _configuration = configuration;
             _packetRegistry = packetRegistry;
