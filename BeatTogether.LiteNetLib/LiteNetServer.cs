@@ -19,9 +19,10 @@ namespace BeatTogether.LiteNetLib
         public event ClientConnectHandler ClientConnectEvent = null!;
         public event ClientDisconnectHandler ClientDisconnectEvent = null!;
 
-        private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<int, TaskCompletionSource<long>>> _pongTasks = new();
+        private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<int, TaskCompletionSource<(int, long)>>> _pongTasks = new();
         private readonly ConcurrentDictionary<EndPoint, CancellationTokenSource> _pingCts = new();
         private readonly ConcurrentDictionary<EndPoint, long> _connectionTimes = new();
+        private readonly ConcurrentDictionary<EndPoint, long> _lastPacketTimes = new();
 
         private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetPacketRegistry _packetRegistry;
@@ -49,6 +50,8 @@ namespace BeatTogether.LiteNetLib
 
         protected override void OnReceived(EndPoint endPoint, ReadOnlySpan<byte> buffer)
         {
+            if (_lastPacketTimes.ContainsKey(endPoint))
+                _lastPacketTimes[endPoint] = DateTime.UtcNow.Ticks;
             ReceivePacket(endPoint, buffer);
 
             // Important: Receive using thread pool is necessary here to avoid stack overflow with Socket.ReceiveFromAsync() method!
@@ -181,7 +184,9 @@ namespace BeatTogether.LiteNetLib
         internal void HandleConnect(EndPoint endPoint, long connectionTime)
         {
             _connectionTimes[endPoint] = connectionTime;
+            _lastPacketTimes[endPoint] = DateTime.UtcNow.Ticks;
             Task.Run(async () => await PingClient(endPoint));
+            Task.Run(async () => await CheckForTimeout(endPoint));
             OnConnect(endPoint);
             ClientConnectEvent?.Invoke(endPoint);
         }
@@ -191,6 +196,8 @@ namespace BeatTogether.LiteNetLib
             _connectionTimes.TryRemove(endPoint, out _);
             if (_pingCts.TryRemove(endPoint, out var ping))
                 ping.Cancel();
+            _pongTasks.TryRemove(endPoint, out _);
+            _lastPacketTimes.TryRemove(endPoint, out _);
             OnDisconnect(endPoint, reason);
             ClientDisconnectEvent?.Invoke(endPoint, reason);
         }
@@ -205,7 +212,7 @@ namespace BeatTogether.LiteNetLib
         {
             if (_pongTasks.TryRemove(endPoint, out var pongs))
                 if (pongs.TryRemove(sequence, out var task))
-                    task.SetResult(time);
+                    task.SetResult((sequence, time));
         }
 
         /// <summary>
@@ -231,12 +238,6 @@ namespace BeatTogether.LiteNetLib
                         timeoutCts = new CancellationTokenSource();
                         var latency = stopwatch.ElapsedMilliseconds / 2;
                         OnLatencyUpdate(endPoint, (int)latency);
-
-                        Task.Delay(_configuration.TimeoutDelay, timeoutCts.Token).ContinueWith(timeout =>
-                        {
-                            if (!timeout.IsCanceled)
-                                Disconnect(endPoint, DisconnectReason.Timeout);
-                        });
                     });
 
                 await Send(endPoint, new PingHeader
@@ -246,6 +247,19 @@ namespace BeatTogether.LiteNetLib
                 stopwatch.Start();
                 sequence = (sequence + 1) % _configuration.MaxSequence;
                 await Task.Delay(_configuration.PingDelay);
+            }
+        }
+
+        private async Task CheckForTimeout(EndPoint endPoint)
+        {
+            var cancellation = _pingCts.GetOrAdd(endPoint, _ => new());
+            while (!cancellation.IsCancellationRequested)
+            {
+                var nowTime = DateTime.UtcNow.Ticks;
+                var lastPacketTime = _lastPacketTimes[endPoint];
+                if (nowTime - lastPacketTime > 5 * TimeSpan.TicksPerSecond)
+                    Disconnect(endPoint, DisconnectReason.Timeout);
+                await Task.Delay(_configuration.TimeoutRefreshDelay);
             }
         }
     }

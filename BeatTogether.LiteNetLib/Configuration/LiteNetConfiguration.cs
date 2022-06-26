@@ -7,7 +7,8 @@
         public int ReliableRetryDelay { get; set; } = 27;
         public int MaximumReliableRetries { get; set; } = -1;
         public int MaxPacketSize { get; set; } = 1432;
-        public int PingDelay = 1000;
-        public int TimeoutDelay = 5000;
+        public int PingDelay { get; set; } = 1000;
+        public int TimeoutDelay { get; set; } = 5000;
+        public int TimeoutRefreshDelay { get; set; } = 15;
     }
 }
