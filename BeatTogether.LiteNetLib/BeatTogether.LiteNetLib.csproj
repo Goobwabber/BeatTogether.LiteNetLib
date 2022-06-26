@@ -5,7 +5,7 @@
 		<Authors>Goobwabber</Authors>
 		<Company>Goobwabber</Company>
 		<RepositoryUrl>https://github.com/Goobwabber/BeatTogether.LiteNetLib</RepositoryUrl>
-		<Version>0.3.5</Version>
+		<Version>0.3.9.1</Version>
 		<Nullable>enable</Nullable>
 		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
     </PropertyGroup>
@@ -13,6 +13,12 @@
         <PackageReference Include="Krypton.Buffers" Version="2.0.3" />
         <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="6.0.0" />
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
+    </ItemGroup>
+    <ItemGroup>
+      <ProjectReference Include="..\..\UdpServer\AsyncUdpServer\AsyncUdpServer\AsyncUdpServer.csproj">
+	        <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+            <IncludeAssets>AsyncUdpServer.dll</IncludeAssets>
+        </ProjectReference>
     </ItemGroup>
 	<Target DependsOnTargets="ResolveReferences" Name="CopyProjectReferencesToPackage">
 		<ItemGroup>

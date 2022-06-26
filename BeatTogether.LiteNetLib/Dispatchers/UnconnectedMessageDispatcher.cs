@@ -24,7 +24,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             else
                 new BroadcastHeader().WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message);
-            _server.SendAsync(endPoint, bufferWriter);
+            _server.Send(endPoint, bufferWriter.Data.ToArray());
         }
     }
 }

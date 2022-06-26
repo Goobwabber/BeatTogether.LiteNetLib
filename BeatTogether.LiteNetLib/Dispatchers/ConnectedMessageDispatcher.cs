@@ -127,7 +127,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 Sequence = (ushort)sequence
             }.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message);
-            _server.SendAsync(endPoint, bufferWriter.Data);
+            _server.Send(endPoint, bufferWriter.Data.ToArray());
             return Task.CompletedTask;
         }
 
@@ -138,7 +138,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             new UnreliableHeader().WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message);
-            _server.SendAsync(endPoint, bufferWriter);
+            _server.Send(endPoint, bufferWriter.Data.ToArray());
             return Task.CompletedTask;
         }
 

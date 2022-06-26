@@ -10,10 +10,11 @@ using System.Diagnostics;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using AsyncUdp;
 
 namespace BeatTogether.LiteNetLib
 {
-    public class LiteNetServer : ConcurrentUdpServer
+    public class LiteNetServer : AsyncUdpServer
     {
         public event ClientConnectHandler ClientConnectEvent = null!;
         public event ClientDisconnectHandler ClientDisconnectEvent = null!;
@@ -32,8 +33,10 @@ namespace BeatTogether.LiteNetLib
             LiteNetConfiguration configuration,
             LiteNetPacketRegistry packetRegistry,
             IServiceProvider serviceProvider,
-            IPacketLayer? packetLayer = null) 
-            : base(endPoint)
+            int AsyncCount,
+            bool AsyncReceive,
+            IPacketLayer? packetLayer = null)
+            : base(endPoint, AsyncCount, AsyncReceive)
         {
             _configuration = configuration;
             _packetRegistry = packetRegistry;
@@ -41,15 +44,15 @@ namespace BeatTogether.LiteNetLib
             _packetLayer = packetLayer;
         }
 
-        protected override void OnStarted()
-            => ReceiveAsync();
+        //protected override void OnStarted()
+        //    => StartReceiveAsync();
 
         protected override void OnReceived(EndPoint endPoint, ReadOnlySpan<byte> buffer)
         {
             ReceivePacket(endPoint, buffer);
 
             // Important: Receive using thread pool is necessary here to avoid stack overflow with Socket.ReceiveFromAsync() method!
-            ThreadPool.QueueUserWorkItem(o => { ReceiveAsync(); });
+            //ThreadPool.QueueUserWorkItem(o => { ReceiveAsync(); });
         }
 
         private void ReceivePacket(EndPoint endPoint, ReadOnlySpan<byte> buffer)
@@ -82,15 +85,24 @@ namespace BeatTogether.LiteNetLib
             }
         }
 
-        protected override void SendImmediate(EndPoint endPoint, ReadOnlySpan<byte> buffer)
+        public async override Task<bool> SendAsync(EndPoint endPoint, ReadOnlyMemory<byte> buffer, CancellationToken token)
+        {
+            ProcessOutbound(endPoint, ref buffer);
+            if (token.IsCancellationRequested)
+            {
+                return false;
+            }
+            return await base.SendAsync(endPoint, buffer, token);
+        }
+
+        private void ProcessOutbound(EndPoint endPoint, ref ReadOnlyMemory<byte> buffer)
         {
             if (_packetLayer != null)
             {
                 Span<byte> layerBuffer = new(buffer.ToArray());
                 _packetLayer.ProcessOutBoundPacket(endPoint, ref layerBuffer);
-                buffer = layerBuffer;
+                buffer = layerBuffer.ToArray();
             }
-            base.SendImmediate(endPoint, buffer);
         }
 
         /// <summary>
@@ -131,7 +143,7 @@ namespace BeatTogether.LiteNetLib
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             packet.WriteTo(ref bufferWriter);
-            SendAsync(endPoint, bufferWriter.Data);
+            Send(endPoint, new ReadOnlyMemory<byte>(bufferWriter.Data.ToArray()));
         }
 
         /// <summary>
@@ -140,7 +152,7 @@ namespace BeatTogether.LiteNetLib
         /// <param name="endPoint">Endpoint to send packet to</param>
         /// <param name="packet">The raw data to send (must include LiteNetLib headers)</param>
         /// <returns>Task that is completed when the packet has been sent</returns>
-        public virtual Task Send(EndPoint endPoint, INetSerializable packet)
+        public virtual Task<bool> Send(EndPoint endPoint, INetSerializable packet)
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             packet.WriteTo(ref bufferWriter);

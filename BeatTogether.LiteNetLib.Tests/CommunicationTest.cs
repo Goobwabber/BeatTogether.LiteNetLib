@@ -130,7 +130,7 @@ namespace BeatTogether.LiteNetLib.Tests
         [Test, Timeout(20000)]
         public void ConnectionByIpV4()
         {
-            _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
+            _clientNetManager.Connect("127.0.0.1", TestServer._Port, "");
             WaitUntilConnected();
             // Check if server can hold a connection for 15 seconds
             var time = Task.Delay(15000);
@@ -164,7 +164,7 @@ namespace BeatTogether.LiteNetLib.Tests
                 msgReceived = true;
             };
 
-            _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
+            _clientNetManager.Connect("127.0.0.1", TestServer._Port, "");
             WaitUntilConnected();
             WaitWhileConnectedUntil(() => msgDelivered && msgReceived);
             Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
@@ -202,7 +202,7 @@ namespace BeatTogether.LiteNetLib.Tests
                 msgReceived = true;
             };
 
-            _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
+            _clientNetManager.Connect("127.0.0.1", TestServer._Port, "");
             WaitUntilConnected();
             WaitWhileConnectedUntil(() => msgDelivered && msgReceived);
             Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
@@ -236,7 +236,7 @@ namespace BeatTogether.LiteNetLib.Tests
                 msgReceived = true;
             };
 
-            _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
+            _clientNetManager.Connect("127.0.0.1", TestServer._Port, "");
             WaitUntilConnected();
             WaitWhileConnectedUntil(() => msgDelivered && msgReceived);
             Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
@@ -275,7 +275,7 @@ namespace BeatTogether.LiteNetLib.Tests
                 msgReceived = true;
             };
 
-            _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
+            _clientNetManager.Connect("127.0.0.1", TestServer._Port, "");
             WaitUntilConnected();
             WaitWhileConnectedUntil(() => msgDelivered && msgReceived);
             Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
@@ -296,7 +296,7 @@ namespace BeatTogether.LiteNetLib.Tests
                 serverConnected = true;
             };
 
-            _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
+            _clientNetManager.Connect("127.0.0.1", TestServer._Port, "");
             WaitUntilConnected();
             WaitUntil(() => serverConnected);
             _server.Disconnect(clientEndPoint, Enums.DisconnectReason.DisconnectPeerCalled);
@@ -324,7 +324,7 @@ namespace BeatTogether.LiteNetLib.Tests
                 serverDisconnected = true;
             };
 
-            NetPeer serverPeer = _clientNetManager.Connect("127.0.0.1", TestServer.Port, "");
+            NetPeer serverPeer = _clientNetManager.Connect("127.0.0.1", TestServer._Port, "");
             WaitUntilConnected();
             serverPeer.Disconnect();
             WaitUntil(() => clientDisconnected && serverDisconnected);
