@@ -28,7 +28,7 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
 
         public override void Signal(EndPoint remoteEndPoint, ChanneledHeader header, ref SpanBufferReader reader)
         {
-            _logger.LogTrace($"Received connected message length '{reader.RemainingSize}' from '{remoteEndPoint}'");
+            //_logger.LogTrace($"Received connected message length '{reader.RemainingSize}' from '{remoteEndPoint}'");
             base.Signal(remoteEndPoint, header, ref reader);
         }
 
