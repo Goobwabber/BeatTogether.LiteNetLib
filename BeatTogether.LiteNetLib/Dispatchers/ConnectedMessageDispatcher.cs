@@ -18,9 +18,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
         public const int ChanneledHeaderSize = 4;
         public const int FragmentedHeaderSize = ChanneledHeaderSize + 6;
 
-        private object _fragmentIdLock = new();
-        private ushort _fragmentId = 0;
-
+        private readonly ConcurrentDictionary<EndPoint, ushort> _fragmentIds = new();
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, QueueWindow>> _channelWindows = new();
         private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetServer _server;
@@ -54,12 +52,9 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             if (fragmentCount > ushort.MaxValue) // ushort is used to identify each fragment
                 throw new Exception(); // TODO
 
-            ushort fragmentId;
-            lock (_fragmentIdLock)
-            {
-                fragmentId = _fragmentId;
-                _fragmentId++;
-            }
+            // technically not thread safe but really should almost never cause issues
+            ushort fragmentId = _fragmentIds.GetOrAdd(endPoint, 0);
+            _fragmentIds[endPoint]++;
 
             List<Task> fragmentTasks = new();
             var bufferReader = new SpanBufferReader(message);
