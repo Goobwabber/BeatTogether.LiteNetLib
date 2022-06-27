@@ -54,9 +54,10 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             if (fragmentCount > ushort.MaxValue) // ushort is used to identify each fragment
                 throw new Exception(); // TODO
 
+            ushort fragmentId;
             lock (_fragmentLock)
             {
-                ushort fragmentId = _fragmentIds.GetOrAdd(endPoint, 0);
+                fragmentId = _fragmentIds.GetOrAdd(endPoint, 0);
                 _fragmentIds[endPoint]++;
             }
 
