@@ -1,5 +1,4 @@
-﻿using BeatTogether.LiteNetLib.Abstractions;
-using BeatTogether.LiteNetLib.Configuration;
+﻿using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Enums;
 using Krypton.Buffers;
 using Microsoft.Extensions.Hosting;
@@ -52,13 +51,13 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             {
                 base.HandlePacket(endPoint, buffer);
             }
-            catch(ObjectDisposedException e)
+            catch(ObjectDisposedException /*e*/)
             {
 
             }
         }
 
-        public override async Task<bool> SendAsync(EndPoint endPoint, ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken)
+        public override async Task<bool> SendAsync(EndPoint endPoint, Memory<byte> buffer, CancellationToken cancellationToken)
         {
             bool value = await base.SendAsync(endPoint, buffer, cancellationToken);
             if (buffer.Length < 100)

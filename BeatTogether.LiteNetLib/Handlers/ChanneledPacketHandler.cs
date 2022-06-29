@@ -25,7 +25,7 @@ namespace BeatTogether.LiteNetLib.Handlers
         {
             if (_messageSource == null)
                 return Task.CompletedTask;
-            if (packet.Sequence > _configuration.MaxSequence)
+            if (packet.Sequence >= _configuration.MaxSequence)
                 return Task.CompletedTask; // 'Bad sequence'
             _messageSource.Signal(endPoint, packet, ref reader);
             return Task.CompletedTask;

@@ -18,7 +18,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
         public const int ChanneledHeaderSize = 4;
         public const int FragmentedHeaderSize = ChanneledHeaderSize + 6;
 
-        private object _fragmentLock = new object();
+        private object _fragmentLock = new();
 
         private readonly ConcurrentDictionary<EndPoint, ushort> _fragmentIds = new();
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, QueueWindow>> _channelWindows = new();

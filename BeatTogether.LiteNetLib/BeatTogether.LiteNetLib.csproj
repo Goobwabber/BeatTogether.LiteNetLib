@@ -5,7 +5,7 @@
 		<Authors>Goobwabber</Authors>
 		<Company>Goobwabber</Company>
 		<RepositoryUrl>https://github.com/Goobwabber/BeatTogether.LiteNetLib</RepositoryUrl>
-		<Version>0.3.9.6</Version>
+		<Version>0.3.9.18</Version>
 		<Nullable>enable</Nullable>
 		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
     </PropertyGroup>
@@ -15,10 +15,10 @@
         <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="6.0.0" />
     </ItemGroup>
     <ItemGroup>
-		<ProjectReference Include="..\dependencies\AsyncUdpServer\AsyncUdpServer\AsyncUdpServer.csproj">
-	        <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
-            <IncludeAssets>AsyncUdpServer.dll</IncludeAssets>
-        </ProjectReference>
+      <ProjectReference Include="..\dependencies\AsyncUdpServer\AsyncUdpServer\AsyncUdpServer.csproj">
+		  <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+		  <IncludeAssets>AsyncUdpServer.dll</IncludeAssets>
+	  </ProjectReference>
     </ItemGroup>
 	<Target DependsOnTargets="ResolveReferences" Name="CopyProjectReferencesToPackage">
 		<ItemGroup>
