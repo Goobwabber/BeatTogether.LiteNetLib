@@ -92,7 +92,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             _ = ackTask.ContinueWith(_ => ackCts.Cancel()); // Cancel if acknowledged
 
             var retryCount = 0;
-            while (_configuration.MaximumReliableRetries >= 0 ? retryCount++ < _configuration.MaximumReliableRetries : true) 
+            while (_configuration.MaximumReliableRetries < 0 || retryCount++ < _configuration.MaximumReliableRetries) 
             {
                 if (!_channelWindows.TryGetValue(endPoint, out var channels) || !channels.TryGetValue(channelId, out _))
                     return; // Channel destroyed, stop sending
