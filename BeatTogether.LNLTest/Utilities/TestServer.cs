@@ -50,7 +50,7 @@ public class TestServer : LiteNetServer, IHostedService
         base.OnStarted();
     }
 
-    protected override void OnReceived(EndPoint endPoint, ReadOnlySpan<byte> buffer)
+    protected override void OnReceived(EndPoint endPoint, Memory<byte> buffer)
     {
         base.OnReceived(endPoint, buffer);
     }

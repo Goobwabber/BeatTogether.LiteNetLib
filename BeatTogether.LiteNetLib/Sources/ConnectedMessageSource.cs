@@ -5,16 +5,12 @@ using BeatTogether.LiteNetLib.Models;
 using Krypton.Buffers;
 using System;
 using System.Collections.Concurrent;
-using System.Linq;
 using System.Net;
-using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Sources
 {
     public abstract class ConnectedMessageSource : IDisposable
     {
-        private bool _sendAcks = false;
-
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<ushort, FragmentBuilder>> _fragmentBuilders = new();
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, AckWindow>> _channelWindows = new();
         private readonly LiteNetConfiguration _configuration;
@@ -41,22 +37,17 @@ namespace BeatTogether.LiteNetLib.Sources
 
         public virtual void Signal(EndPoint remoteEndPoint, ChanneledHeader header, ref SpanBufferReader reader)
         {
-            _sendAcks = true; // Sometimes locked threads screw eachother, do to ensure only one ack gets sent
             var window = _channelWindows.GetOrAdd(remoteEndPoint, _ => new())
                 .GetOrAdd(header.ChannelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
             var alreadyReceived = !window.Add(header.Sequence);
             var windowArray = window.GetWindow(out int windowPosition);
 
-            if (_sendAcks)
+            _server.SendAsync(remoteEndPoint, new AckHeader
             {
-                _server.SendAsync(remoteEndPoint, new AckHeader
-                {
-                    Sequence = (ushort)windowPosition,
-                    ChannelId = header.ChannelId,
-                    Acknowledgements = windowArray
-                });
-                _sendAcks = false;
-            }
+                Sequence = (ushort)windowPosition,
+                ChannelId = header.ChannelId,
+                Acknowledgements = windowArray
+            });
 
             if (header.IsFragmented)
             {

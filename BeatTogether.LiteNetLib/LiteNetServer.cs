@@ -43,28 +43,17 @@ namespace BeatTogether.LiteNetLib
             _packetLayer = packetLayer;
         }
 
-        //protected override void OnStarted()
-        //    => StartReceiveAsync();
-
-        protected override void OnReceived(EndPoint endPoint, ReadOnlySpan<byte> buffer)
+        protected override void OnReceived(EndPoint endPoint, Memory<byte> buffer)
         {
             if (_lastPacketTimes.ContainsKey(endPoint))
                 _lastPacketTimes[endPoint] = DateTime.UtcNow.Ticks;
-            ReceivePacket(endPoint, buffer);
-
-            // Important: Receive using thread pool is necessary here to avoid stack overflow with Socket.ReceiveFromAsync() method!
-            //ThreadPool.QueueUserWorkItem(o => { ReceiveAsync(); });
+            ReceivePacket(endPoint, buffer.Span);
         }
 
-        private void ReceivePacket(EndPoint endPoint, ReadOnlySpan<byte> buffer)
+        private void ReceivePacket(EndPoint endPoint, Span<byte> buffer)
         {
             if (_packetLayer != null)
-            {
-                Span<byte> layerBuffer = new(buffer.ToArray());
-                _packetLayer.ProcessInboundPacket(endPoint, ref layerBuffer);
-                buffer = layerBuffer;
-            }
-
+                _packetLayer.ProcessInboundPacket(endPoint, ref buffer);
             HandlePacket(endPoint, buffer);
         }
 
@@ -86,7 +75,7 @@ namespace BeatTogether.LiteNetLib
             }
         }
 
-        public async override Task<bool> SendAsync(EndPoint endPoint, ReadOnlyMemory<byte> buffer, CancellationToken token)
+        public async override Task<bool> SendAsync(EndPoint endPoint, Memory<byte> buffer, CancellationToken token)
         {
             ProcessOutbound(endPoint, ref buffer);
             if (token.IsCancellationRequested)
@@ -96,13 +85,13 @@ namespace BeatTogether.LiteNetLib
             return await base.SendAsync(endPoint, buffer, token);
         }
 
-        private void ProcessOutbound(EndPoint endPoint, ref ReadOnlyMemory<byte> buffer)
+        private void ProcessOutbound(EndPoint endPoint, ref Memory<byte> buffer)
         {
             if (_packetLayer != null)
             {
-                Span<byte> layerBuffer = new(buffer.ToArray());
-                _packetLayer.ProcessOutBoundPacket(endPoint, ref layerBuffer);
-                buffer = layerBuffer.ToArray();
+                Span<byte> span = buffer.Span;
+                _packetLayer.ProcessOutBoundPacket(endPoint, ref span);
+                buffer = span.ToArray();
             }
         }
 
@@ -144,7 +133,7 @@ namespace BeatTogether.LiteNetLib
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             packet.WriteTo(ref bufferWriter);
-            Send(endPoint, new ReadOnlyMemory<byte>(bufferWriter.Data.ToArray()));
+            Send(endPoint, new Memory<byte>(bufferWriter.Data.ToArray()));
         }
 
         /// <summary>
@@ -157,7 +146,7 @@ namespace BeatTogether.LiteNetLib
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             packet.WriteTo(ref bufferWriter);
-            return SendAsync(endPoint, new ReadOnlyMemory<byte>(bufferWriter.Data.ToArray()), CancellationToken.None);
+            return SendAsync(endPoint, new Memory<byte>(bufferWriter.Data.ToArray()), CancellationToken.None);
         }
 
         /// <summary>

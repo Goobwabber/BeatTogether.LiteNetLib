@@ -18,7 +18,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
         public const int ChanneledHeaderSize = 4;
         public const int FragmentedHeaderSize = ChanneledHeaderSize + 6;
 
-        private object _fragmentLock = new object();
+        private object _fragmentLock = new();
 
         private readonly ConcurrentDictionary<EndPoint, ushort> _fragmentIds = new();
         private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, QueueWindow>> _channelWindows = new();
@@ -46,10 +46,10 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 _ = window.Enqueue(out int queueIndex);
                 return SendChanneled(endPoint, message, channelId, queueIndex);
             }
-            if (message.Length + ChanneledHeaderSize <= _configuration.MaxPacketSize)
+            if (message.Length + ChanneledHeaderSize + 80 <= _configuration.MaxPacketSize)
                 return SendAndRetry(endPoint, new Memory<byte>(message.ToArray()), channelId);
 
-            int maxMessageSize = _configuration.MaxPacketSize - FragmentedHeaderSize;
+            int maxMessageSize =  _configuration.MaxPacketSize - FragmentedHeaderSize - 80;
             int fragmentCount = message.Length / maxMessageSize + ((message.Length % maxMessageSize == 0) ? 0 : 1);
             if (fragmentCount > ushort.MaxValue) // ushort is used to identify each fragment
                 throw new Exception(); // TODO
@@ -92,7 +92,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             _ = ackTask.ContinueWith(_ => ackCts.Cancel()); // Cancel if acknowledged
 
             var retryCount = 0;
-            while (_configuration.MaximumReliableRetries >= 0 ? retryCount++ < _configuration.MaximumReliableRetries : true) 
+            while (_configuration.MaximumReliableRetries < 0 || retryCount++ < _configuration.MaximumReliableRetries) 
             {
                 if (!_channelWindows.TryGetValue(endPoint, out var channels) || !channels.TryGetValue(channelId, out _))
                     return; // Channel destroyed, stop sending
