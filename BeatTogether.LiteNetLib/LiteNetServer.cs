@@ -65,7 +65,11 @@ namespace BeatTogether.LiteNetLib
                 PacketProperty property = (PacketProperty)(buffer[0] & 0x1f); // 0x1f 00011111
                 if (!_packetRegistry.TryCreatePacket(property, out var packet))
                     return;
-                packet.ReadFrom(ref bufferReader);
+                try
+                {
+                    packet.ReadFrom(ref bufferReader);
+                }
+                catch (EndOfBufferException) { return; } //Will ignore erranous packets that have incorrect data
                 var packetHandlerType = typeof(IPacketHandler<>)
                         .MakeGenericType(packet.GetType());
                 var packetHandler = _serviceProvider.GetService(packetHandlerType);

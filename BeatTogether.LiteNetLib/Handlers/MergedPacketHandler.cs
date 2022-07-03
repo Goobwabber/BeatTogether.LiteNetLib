@@ -1,6 +1,7 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Headers;
 using Krypton.Buffers;
+using System;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -20,8 +21,13 @@ namespace BeatTogether.LiteNetLib.Handlers
         {
             while (reader.RemainingSize > 0)
             {
-                ushort size = reader.ReadUInt16();
-                var newPacket = reader.ReadBytes(size);
+                ReadOnlySpan<byte> newPacket;
+                try
+                {
+                    ushort size = reader.ReadUInt16();
+                    newPacket = reader.ReadBytes(size);
+                }
+                catch(EndOfBufferException) { return Task.CompletedTask; }
                 _server.HandlePacket(endPoint, newPacket);
             }
             return Task.CompletedTask;
