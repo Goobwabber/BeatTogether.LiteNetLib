@@ -13,11 +13,11 @@ namespace BeatTogether.LiteNetLib.Headers
 
         public override void ReadFrom(ref SpanBufferReader bufferReader)
         {
-                base.ReadFrom(ref bufferReader);            //1
-                ProtocolId = bufferReader.ReadInt32();      //4
-                ConnectionTime = bufferReader.ReadInt64();  //8
-                int addressSize = bufferReader.ReadByte();  //1 = 14 bytes
-                Address = bufferReader.ReadBytes(addressSize).ToArray(); //and misreads this 
+            base.ReadFrom(ref bufferReader);
+            ProtocolId = bufferReader.ReadInt32();
+            ConnectionTime = bufferReader.ReadInt64();
+            int addressSize = bufferReader.ReadByte();
+            Address = bufferReader.ReadBytes(addressSize).ToArray();
         }
 
         public override void WriteTo(ref SpanBufferWriter bufferWriter)
