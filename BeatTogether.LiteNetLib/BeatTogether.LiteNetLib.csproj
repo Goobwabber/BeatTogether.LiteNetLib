@@ -5,7 +5,7 @@
 		<Authors>Goobwabber</Authors>
 		<Company>Goobwabber</Company>
 		<RepositoryUrl>https://github.com/Goobwabber/BeatTogether.LiteNetLib</RepositoryUrl>
-		<Version>0.3.13</Version>
+		<Version>0.3.14</Version>
 		<Nullable>enable</Nullable>
 		<TargetsForTfmSpecificBuildOutput>$(TargetsForTfmSpecificBuildOutput);CopyProjectReferencesToPackage</TargetsForTfmSpecificBuildOutput>
     </PropertyGroup>
@@ -16,9 +16,9 @@
     </ItemGroup>
     <ItemGroup>
       <ProjectReference Include="..\dependencies\AsyncUdpServer\AsyncUdpServer\AsyncUdpServer.csproj">
-		  <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
-		  <IncludeAssets>AsyncUdpServer.dll</IncludeAssets>
-	  </ProjectReference>
+        <ReferenceOutputAssembly>true</ReferenceOutputAssembly>
+        <IncludeAssets>AsyncUdpServer.dll</IncludeAssets>
+      </ProjectReference>
     </ItemGroup>
 	<Target DependsOnTargets="ResolveReferences" Name="CopyProjectReferencesToPackage">
 		<ItemGroup>

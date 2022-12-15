@@ -35,7 +35,7 @@ namespace BeatTogether.LiteNetLib
             LiteNetPacketRegistry packetRegistry,
             IServiceProvider serviceProvider,
             IPacketLayer? packetLayer = null)
-            : base(endPoint, configuration.MaxAsyncSocketOperations, configuration.MaxAsyncSocketOperations > 1)
+            : base(endPoint, configuration.MaxAsyncSocketOperations, 8192, configuration.MaxAsyncSocketOperations > 1, 50, 100)
         {
             _configuration = configuration;
             _packetRegistry = packetRegistry;
