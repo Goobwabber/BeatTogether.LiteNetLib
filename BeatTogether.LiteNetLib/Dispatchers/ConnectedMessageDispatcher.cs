@@ -25,6 +25,8 @@ namespace BeatTogether.LiteNetLib.Dispatchers
         private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetServer _server;
 
+        public bool SendOverloaded => _server.SendOverload;
+
         public ConnectedMessageDispatcher(
             LiteNetConfiguration configuration,
             LiteNetServer server)
