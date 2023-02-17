@@ -98,12 +98,12 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                     return; // Channel destroyed, stop sending
 
                 if (ackTask.IsCompleted)
-                    break;
+                    return;
                 await _server.SendAsync(endPoint, fullMessage, ackCts.Token);
-                await Task.WhenAny(
-                    ackTask,
-                    Task.Delay(_configuration.ReliableRetryDelay)
-                );
+                //await Task.WhenAny(
+                //    ackTask, Task.Delay(_configuration.ReliableRetryDelay)
+                //);
+                await Task.Delay(_configuration.ReliableRetryDelay, ackCts.Token);
                 // Failed, try again
             }
         }
