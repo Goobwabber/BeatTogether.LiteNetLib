@@ -63,7 +63,10 @@ namespace BeatTogether.LiteNetLib.Tests
             _messageDispatcher = _serviceProvider.GetService<ConnectedMessageDispatcher>();
             _messageSource = _serviceProvider.GetService<TestSource>();
             _logger = _serviceProvider.GetService<ILogger<CommunicationTest>>();
+            var configuration = _serviceProvider.GetService<LiteNetConfiguration>();
             var clientLogger = _serviceProvider.GetService<ILogger<NetManager>>();
+
+            configuration.WindowSize = 64;
 
             _clientNetListener.NetworkErrorEvent += (endPoint, error) =>
             {

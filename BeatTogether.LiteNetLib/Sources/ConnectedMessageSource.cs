@@ -48,7 +48,8 @@ namespace BeatTogether.LiteNetLib.Sources
             {
                 Sequence = (ushort)windowPosition,
                 ChannelId = header.ChannelId,
-                Acknowledgements = windowArray
+                Acknowledgements = windowArray,
+                WindowSize = _configuration.WindowSize
             });
 
             if (header.IsFragmented)
