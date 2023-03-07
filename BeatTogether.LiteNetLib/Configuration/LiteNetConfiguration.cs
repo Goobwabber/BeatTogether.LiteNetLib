@@ -3,7 +3,7 @@
     public class LiteNetConfiguration
     {
         public ushort MaxSequence { get; set; } = 32768;
-        public int WindowSize { get; set; } = 64;
+        public int WindowSize { get; set; } = 256;
         public int ReliableRetryDelay { get; set; } = 80;
         public int MaximumReliableRetries { get; set; } = 15;
         public int MaxPacketSize { get; set; } = 1432;
