@@ -7,14 +7,11 @@ namespace BeatTogether.LiteNetLib.Headers
 {
     public class AckHeader : BaseLiteNetHeader
     {
-        // 64 = Window size, 8 = Number of bits in byte
-        // TODO: figure out wtf to do with this, needs the value from config object
-        public const int AcknowledgementsSize = (256 - 1) / 8 + 2;
-
         public override PacketProperty Property { get; set; } = PacketProperty.Ack;
         public ushort Sequence { get; set; }
         public byte ChannelId { get; set; }
         public List<int> Acknowledgements { get; set; } = new();
+        public int WindowSize { get; set; }
 
         public override void ReadFrom(ref SpanBufferReader bufferReader)
         {
@@ -23,7 +20,7 @@ namespace BeatTogether.LiteNetLib.Headers
             ChannelId = bufferReader.ReadUInt8();
 
             // If bit is 1, add it's index to 'Acknowledgements'
-            byte[] bytes = bufferReader.ReadBytes(AcknowledgementsSize).ToArray();
+            byte[] bytes = bufferReader.ReadBytes(bufferReader.RemainingSize).ToArray();
             for (int currentByte = 0; currentByte < bytes.Length; currentByte++)
                 for (int currentBit = 0; currentBit < 8; currentBit++)
                     if ((bytes[currentByte] & (1 << currentBit)) != 0)
@@ -37,7 +34,7 @@ namespace BeatTogether.LiteNetLib.Headers
             bufferWriter.WriteUInt8(ChannelId);
 
             // Set bit at index of each acknowledgement
-            byte[] bytes = new byte[AcknowledgementsSize];
+            byte[] bytes = new byte[(WindowSize - 1) / 8 + 2];
             foreach (int acknowledgement in Acknowledgements)
             {
                 int ackByte = acknowledgement / 8;
