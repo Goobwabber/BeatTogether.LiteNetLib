@@ -9,7 +9,7 @@ namespace BeatTogether.LiteNetLib.Headers
     {
         // 64 = Window size, 8 = Number of bits in byte
         // TODO: figure out wtf to do with this, needs the value from config object
-        public const int AcknowledgementsSize = (64 - 1) / 8 + 2;
+        public const int AcknowledgementsSize = (256 - 1) / 8 + 2;
 
         public override PacketProperty Property { get; set; } = PacketProperty.Ack;
         public ushort Sequence { get; set; }
