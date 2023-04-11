@@ -6,7 +6,6 @@ using BeatTogether.LiteNetLib.Models;
 using Krypton.Buffers;
 using System;
 using System.Collections.Concurrent;
-using System.Collections.Generic;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -61,13 +60,13 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 _fragmentIds[endPoint]++;
             }
 
-            List<Task> fragmentTasks = new();
+            Task[] fragmentTasks = new Task[fragmentCount];
             var bufferReader = new SpanBufferReader(message);
             for (ushort i = 0; i < fragmentCount; i++)
             {
                 var sliceSize = bufferReader.RemainingSize > maxMessageSize ? maxMessageSize : bufferReader.RemainingSize;
                 var memSlice = new Memory<byte>(bufferReader.ReadBytes(sliceSize).ToArray());
-                fragmentTasks.Add(SendAndRetry(endPoint, memSlice, channelId, true, fragmentId, i, (ushort)fragmentCount));
+                fragmentTasks[i] = SendAndRetry(endPoint, memSlice, channelId, true, fragmentId, i, (ushort)fragmentCount);
             }
             return Task.WhenAll(fragmentTasks);
         }
@@ -77,7 +76,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             var window = _channelWindows.GetOrAdd(endPoint, _ => new())
                 .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
             await window.Enqueue(out int queueIndex);
-            var fullMessage = WriteHeader(new ChanneledHeader
+            Memory<byte> fullMessage = WriteHeader(new ChanneledHeader
             {
                 IsFragmented = fragmented,
                 ChannelId = channelId,
@@ -86,7 +85,6 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 FragmentPart = fragmentPart,
                 FragmentsTotal = fragmentsTotal
             }, message);
-
             var ackTask = window.WaitForDequeue(queueIndex);
             var ackCts = new CancellationTokenSource();
             _ = ackTask.ContinueWith(_ => ackCts.Cancel()); // Cancel if acknowledged
@@ -100,11 +98,10 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 if (ackTask.IsCompleted)
                     return;
                 await _server.SendAsync(endPoint, fullMessage, ackCts.Token);
-                //await Task.WhenAny(
-                //    ackTask, Task.Delay(_configuration.ReliableRetryDelay)
-                //);
-                await Task.Delay(_configuration.ReliableRetryDelay, ackCts.Token);
-                // Failed, try again
+                await Task.WhenAny(
+                    ackTask,
+                    Task.Delay(_configuration.ReliableRetryDelay)
+                );
             }
         }
 
@@ -131,12 +128,13 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             return Task.CompletedTask;
         }
 
+        UnreliableHeader unreliableHeader = new UnreliableHeader();
         private Task SendUnreliable(EndPoint endPoint, ReadOnlySpan<byte> message)
         {
             if (message.Length > _configuration.MaxPacketSize)
                 throw new Exception();
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
-            new UnreliableHeader().WriteTo(ref bufferWriter);
+            unreliableHeader.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message);
             _server.Send(endPoint, bufferWriter.Data.ToArray());
             return Task.CompletedTask;
