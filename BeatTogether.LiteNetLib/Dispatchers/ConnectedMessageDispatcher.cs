@@ -45,10 +45,10 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 _ = window.Enqueue(out int queueIndex);
                 return SendChanneled(endPoint, message, channelId, queueIndex);
             }
-            if (message.Length + ChanneledHeaderSize + 80 <= _configuration.MaxPacketSize)
+            if (message.Length + ChanneledHeaderSize + 256 <= _configuration.MaxPacketSize)
                 return SendAndRetry(endPoint, new Memory<byte>(message.ToArray()), channelId);
 
-            int maxMessageSize =  _configuration.MaxPacketSize - FragmentedHeaderSize - 80;
+            int maxMessageSize =  _configuration.MaxPacketSize - FragmentedHeaderSize - 256;
             int fragmentCount = message.Length / maxMessageSize + ((message.Length % maxMessageSize == 0) ? 0 : 1);
             if (fragmentCount > ushort.MaxValue) // ushort is used to identify each fragment
                 throw new Exception(); // TODO
