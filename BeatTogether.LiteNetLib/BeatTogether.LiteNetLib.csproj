@@ -1,6 +1,6 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
     <PropertyGroup>
-		<TargetFramework>net5.0</TargetFramework>
+		<TargetFramework>net6.0</TargetFramework>
 		<LangVersion>9</LangVersion>
 		<Authors>Goobwabber</Authors>
 		<Company>Goobwabber</Company>
@@ -11,8 +11,8 @@
     </PropertyGroup>
     <ItemGroup>
         <PackageReference Include="Krypton.Buffers" Version="2.0.3" />
-        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="5.0.0" />
-        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="5.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" Version="7.0.0" />
+        <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="7.0.0" />
     </ItemGroup>
     <ItemGroup>
       <ProjectReference Include="..\dependencies\AsyncUdpServer\AsyncUdpServer\AsyncUdpServer.csproj">
