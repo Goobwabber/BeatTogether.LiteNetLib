@@ -97,7 +97,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
 
                 if (ackTask.IsCompleted)
                     return;
-                _server.SendAsync(endPoint, fullMessage, ackCts.Token);
+                _server.SendAsync(endPoint, fullMessage);
                 await Task.WhenAny(
                     ackTask,
                     Task.Delay(_configuration.ReliableRetryDelay)
