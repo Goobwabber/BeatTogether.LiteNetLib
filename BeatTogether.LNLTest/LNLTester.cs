@@ -79,7 +79,7 @@ namespace BeatTogether.LNLTest
             SetupServer();
 
             _testServer = _serviceProvider.GetRequiredService<TestServer>();
-            _testServer.StartAsync(CancellationToken.None);
+            await _testServer.StartAsync(CancellationToken.None);
 
             ConnectWayTooManyClients(128);
             WaitUntilAllSettled();
