@@ -66,7 +66,7 @@ namespace BeatTogether.LNLTest
             }
         }
 
-        async void DisconnectBunchOfClients(int count = 128)
+        void DisconnectBunchOfClients(int count = 128)
         {
             for (int i = 0; i < count; i++)
             {

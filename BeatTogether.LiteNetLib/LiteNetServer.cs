@@ -34,7 +34,7 @@ namespace BeatTogether.LiteNetLib
             LiteNetPacketRegistry packetRegistry,
             IServiceProvider serviceProvider,
             IPacketLayer? packetLayer = null)
-            : base(endPoint, configuration.RecieveAsync)
+            : base(endPoint, configuration.RecieveAsync, configuration.MaxHandlesWhileRecieving)
         {
             _configuration = configuration;
             _packetRegistry = packetRegistry;
@@ -48,8 +48,9 @@ namespace BeatTogether.LiteNetLib
             LiteNetPacketRegistry packetRegistry,
             IServiceProvider serviceProvider,
             bool RecvAsync,
+            int AsyncCount,
             IPacketLayer? packetLayer = null)
-            : base(endPoint, RecvAsync)
+            : base(endPoint, RecvAsync, AsyncCount)
         {
             _configuration = configuration;
             _packetRegistry = packetRegistry;
@@ -93,12 +94,10 @@ namespace BeatTogether.LiteNetLib
             }
         }
 
-        public override void SendAsync(EndPoint endPoint, Memory<byte> buffer, CancellationToken token)
+        public override void SendAsync(EndPoint endPoint, Memory<byte> buffer)
         {
             ProcessOutbound(endPoint, ref buffer);
-            if (token.IsCancellationRequested)
-                return;
-            base.SendAsync(endPoint, buffer, token);
+            base.SendAsync(endPoint, buffer);
         }
 
         private void ProcessOutbound(EndPoint endPoint, ref Memory<byte> buffer)

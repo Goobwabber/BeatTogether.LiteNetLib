@@ -11,5 +11,6 @@
         public int TimeoutDelay { get; set; } = 5000;
         public int TimeoutRefreshDelay { get; set; } = 15;
         public bool RecieveAsync { get; set; } = false;
+        public int MaxHandlesWhileRecieving { get;set; } = 10;
     }
 }
