@@ -10,6 +10,6 @@
         public int PingDelay { get; set; } = 1000;
         public int TimeoutDelay { get; set; } = 5000;
         public int TimeoutRefreshDelay { get; set; } = 15;
-        public int MaxAsyncSocketOperations { get; set; } = 8;
+        public bool RecieveAsync { get; set; } = false;
     }
 }

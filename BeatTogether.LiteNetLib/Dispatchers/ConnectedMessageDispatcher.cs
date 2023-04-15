@@ -97,7 +97,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
 
                 if (ackTask.IsCompleted)
                     return;
-                await _server.SendAsync(endPoint, fullMessage, ackCts.Token);
+                _server.SendAsync(endPoint, fullMessage, ackCts.Token);
                 await Task.WhenAny(
                     ackTask,
                     Task.Delay(_configuration.ReliableRetryDelay)
@@ -124,7 +124,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 Sequence = (ushort)sequence
             }.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message);
-            _server.Send(endPoint, bufferWriter.Data.ToArray());
+            _server.SendAsync(endPoint, bufferWriter.Data.ToArray());
             return Task.CompletedTask;
         }
 
@@ -136,7 +136,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             unreliableHeader.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message);
-            _server.Send(endPoint, bufferWriter.Data.ToArray());
+            _server.SendAsync(endPoint, bufferWriter.Data.ToArray());
             return Task.CompletedTask;
         }
 

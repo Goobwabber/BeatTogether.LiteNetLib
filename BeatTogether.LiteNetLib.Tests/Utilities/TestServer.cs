@@ -57,12 +57,11 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             }
         }
 
-        public override async Task<bool> SendAsync(EndPoint endPoint, Memory<byte> buffer, CancellationToken cancellationToken)
+        public override void SendAsync(EndPoint endPoint, Memory<byte> buffer, CancellationToken cancellationToken)
         {
-            bool value = await base.SendAsync(endPoint, buffer, cancellationToken);
+            base.SendAsync(endPoint, buffer, cancellationToken);
             if (buffer.Length < 100)
                 _logger.LogTrace($"Sent packet [{string.Join(", ", buffer.ToArray())}]");
-            return value;
         }
 
         public override void OnConnect(EndPoint endPoint)

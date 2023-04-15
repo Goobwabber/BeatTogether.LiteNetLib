@@ -16,8 +16,6 @@ namespace BeatTogether.LiteNetLib.Sources
         private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetServer _server;
 
-        public bool SendOverloaded => _server.SendOverload;
-
         public ConnectedMessageSource(
             LiteNetConfiguration configuration,
             LiteNetServer server)

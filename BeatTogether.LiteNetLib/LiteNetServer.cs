@@ -6,7 +6,6 @@ using BeatTogether.LiteNetLib.Headers;
 using Krypton.Buffers;
 using System;
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
@@ -19,7 +18,7 @@ namespace BeatTogether.LiteNetLib
         public event ClientConnectHandler ClientConnectEvent = null!;
         public event ClientDisconnectHandler ClientDisconnectEvent = null!;
 
-        private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<int, TaskCompletionSource<(int, long)>>> _pongTasks = new();
+        private readonly ConcurrentDictionary<EndPoint, (int, int)> _PongSequence = new();
         private readonly ConcurrentDictionary<EndPoint, CancellationTokenSource> _pingCts = new();
         private readonly ConcurrentDictionary<EndPoint, long> _connectionTimes = new();
         private readonly ConcurrentDictionary<EndPoint, long> _lastPacketTimes = new();
@@ -35,7 +34,22 @@ namespace BeatTogether.LiteNetLib
             LiteNetPacketRegistry packetRegistry,
             IServiceProvider serviceProvider,
             IPacketLayer? packetLayer = null)
-            : base(endPoint, configuration.MaxAsyncSocketOperations, 8192, configuration.MaxAsyncSocketOperations > 1, 50, 100)
+            : base(endPoint, configuration.RecieveAsync)
+        {
+            _configuration = configuration;
+            _packetRegistry = packetRegistry;
+            _serviceProvider = serviceProvider;
+            _packetLayer = packetLayer;
+        }
+
+        public LiteNetServer(
+            IPEndPoint endPoint,
+            LiteNetConfiguration configuration,
+            LiteNetPacketRegistry packetRegistry,
+            IServiceProvider serviceProvider,
+            bool RecvAsync,
+            IPacketLayer? packetLayer = null)
+            : base(endPoint, RecvAsync)
         {
             _configuration = configuration;
             _packetRegistry = packetRegistry;
@@ -79,14 +93,12 @@ namespace BeatTogether.LiteNetLib
             }
         }
 
-        public async override Task<bool> SendAsync(EndPoint endPoint, Memory<byte> buffer, CancellationToken token)
+        public override void SendAsync(EndPoint endPoint, Memory<byte> buffer, CancellationToken token)
         {
             ProcessOutbound(endPoint, ref buffer);
             if (token.IsCancellationRequested)
-            {
-                return false;
-            }
-            return await base.SendAsync(endPoint, buffer, token);
+                return;
+            base.SendAsync(endPoint, buffer, token);
         }
 
         private void ProcessOutbound(EndPoint endPoint, ref Memory<byte> buffer)
@@ -137,7 +149,7 @@ namespace BeatTogether.LiteNetLib
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             packet.WriteTo(ref bufferWriter);
-            Send(endPoint, new Memory<byte>(bufferWriter.Data.ToArray()));
+            SendAsync(endPoint, new Memory<byte>(bufferWriter.Data.ToArray()));
         }
 
         /// <summary>
@@ -146,11 +158,11 @@ namespace BeatTogether.LiteNetLib
         /// <param name="endPoint">Endpoint to send packet to</param>
         /// <param name="packet">The raw data to send (must include LiteNetLib headers)</param>
         /// <returns>Task that is completed when the packet has been sent</returns>
-        public virtual Task<bool> Send(EndPoint endPoint, INetSerializable packet)
+        public virtual void Send(EndPoint endPoint, INetSerializable packet)
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             packet.WriteTo(ref bufferWriter);
-            return SendAsync(endPoint, new Memory<byte>(bufferWriter.Data.ToArray()), CancellationToken.None);
+            SendAsync(endPoint, bufferWriter.Data.ToArray().AsMemory());
         }
 
         /// <summary>
@@ -187,23 +199,19 @@ namespace BeatTogether.LiteNetLib
             _connectionTimes.TryRemove(endPoint, out _);
             if (_pingCts.TryRemove(endPoint, out var ping))
                 ping.Cancel();
-            _pongTasks.TryRemove(endPoint, out _);
+            _PongSequence.TryRemove(endPoint, out _);
             _lastPacketTimes.TryRemove(endPoint, out _);
             OnDisconnect(endPoint, reason);
             ClientDisconnectEvent?.Invoke(endPoint, reason);
         }
 
-        /// <summary>
-        /// Handles a pong that was sent in response to a ping
-        /// </summary>
-        /// <param name="endPoint">Client that sent the pong</param>
-        /// <param name="sequence">Sequence id of the pong</param>
-        /// <param name="time">Time specified by pong</param>
         internal void HandlePong(EndPoint endPoint, int sequence, long time)
         {
-            if (_pongTasks.TryRemove(endPoint, out var pongs))
-                if (pongs.TryRemove(sequence, out var task))
-                    task.SetResult((sequence, time));
+            if(_PongSequence.TryGetValue(endPoint, out (int,int) ServerSequence))
+            {
+                if (ServerSequence.Item1 == sequence)
+                    OnLatencyUpdate(endPoint, (DateTime.UtcNow.Millisecond - ServerSequence.Item2) / 2);
+            }
         }
 
         /// <summary>
@@ -213,30 +221,19 @@ namespace BeatTogether.LiteNetLib
         /// <param name="endPoint">Client to send pings to</param>
         private async Task PingClient(EndPoint endPoint)
         {
-            CancellationTokenSource timeoutCts = new CancellationTokenSource();
-
-            int sequence = 1; // MUST BE ONE OR CLIENT WILL IGNORE
+            int Sequence = 0;
+            int PingSendTime = 0;
             var cancellation = _pingCts.GetOrAdd(endPoint, _ => new());
             while (!cancellation.IsCancellationRequested)
             {
-                var stopwatch = new Stopwatch();
-                var pongTask = _pongTasks.GetOrAdd(endPoint, _ => new())
-                    .GetOrAdd(sequence, _ => new()).Task
-                    .ContinueWith(t => // Don't do anything with time returned by client 
-                    {
-                        stopwatch.Stop();
-                        timeoutCts.Cancel();
-                        timeoutCts = new CancellationTokenSource();
-                        var latency = stopwatch.ElapsedMilliseconds / 2;
-                        OnLatencyUpdate(endPoint, (int)latency);
-                    });
+                Sequence = (Sequence + 1) % _configuration.MaxSequence; // Fist send must be 1
+                PingSendTime = DateTime.UtcNow.Millisecond;
+                _PongSequence[Endpoint] = (Sequence, PingSendTime);
 
-                await Send(endPoint, new PingHeader
+                Send(endPoint, new PingHeader
                 {
-                    Sequence = (ushort)sequence
+                    Sequence = (ushort)Sequence
                 });
-                stopwatch.Start();
-                sequence = (sequence + 1) % _configuration.MaxSequence;
                 await Task.Delay(_configuration.PingDelay);
             }
         }
