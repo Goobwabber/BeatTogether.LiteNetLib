@@ -166,7 +166,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             return Task.CompletedTask;
         }
 
-        private Task SendUnreliable(EndPoint endPoint, ReadOnlyMemory<byte> message)
+        private Task SendUnreliable(EndPoint endPoint, ReadOnlyMemory<byte> message) //The serial method works well without triggering the garbage collector constantly, this does but allows for more to be sent though the socket
         {
             if (message.Length > _configuration.MaxPacketSize)
                 throw new Exception();
