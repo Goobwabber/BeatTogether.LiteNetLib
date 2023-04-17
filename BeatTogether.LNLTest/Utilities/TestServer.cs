@@ -2,7 +2,6 @@ using System.Net;
 using BeatTogether.LiteNetLib;
 using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Enums;
-using BeatTogether.LiteNetLib.Util;
 using Krypton.Buffers;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -33,7 +32,7 @@ public class TestServer : LiteNetServer, IHostedService
         return Task.CompletedTask;
     }
 
-    public override bool ShouldAcceptConnection(EndPoint endPoint, ref MemoryBuffer additionalData)
+    public override bool ShouldAcceptConnection(EndPoint endPoint, ref SpanBufferReader additionalData)
     {
         _logger.LogInformation("ShouldAcceptConnection");
         return true;
@@ -83,6 +82,11 @@ public class TestServer : LiteNetServer, IHostedService
         base.OnLatencyUpdate(endPoint, latency);
     }
 
+    protected override void OnSent(EndPoint endpoint, long sent)
+    {
+        base.OnSent(endpoint, sent);
+    }
+
     protected override void OnStopped()
     {
         _logger.LogInformation("OnStopped");
@@ -97,7 +101,7 @@ public class TestServer : LiteNetServer, IHostedService
         Environment.Exit(0);
     }
     */
-    protected override void HandlePacket(EndPoint endPoint, Memory<byte> buffer)
+    protected override void HandlePacket(EndPoint endPoint, ReadOnlySpan<byte> buffer)
     {
         // _logger.LogInformation($"HANDLE PACKET SIZE {buffer.Length}");
         base.HandlePacket(endPoint, buffer);
