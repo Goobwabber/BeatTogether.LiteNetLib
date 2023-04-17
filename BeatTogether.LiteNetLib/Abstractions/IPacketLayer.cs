@@ -1,4 +1,5 @@
-﻿using System;
+﻿using BeatTogether.LiteNetLib.Util;
+using System;
 using System.Net;
 
 namespace BeatTogether.LiteNetLib.Abstractions

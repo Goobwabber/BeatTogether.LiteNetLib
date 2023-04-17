@@ -11,6 +11,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using AsyncUdp;
 using BeatTogether.LiteNetLib.Util;
+using System.Buffers;
 
 namespace BeatTogether.LiteNetLib
 {
@@ -69,7 +70,11 @@ namespace BeatTogether.LiteNetLib
         private void ReceivePacket(EndPoint endPoint, Memory<byte> buffer)
         {
             if (_packetLayer != null)
-                _packetLayer.ProcessInboundPacket(endPoint, ref buffer);
+            {
+                Memory<byte> IncommingData = new(buffer.ToArray());
+                _packetLayer.ProcessInboundPacket(endPoint, ref IncommingData);
+                buffer = IncommingData;
+            }
             HandlePacket(endPoint, buffer);
         }
 
@@ -98,14 +103,22 @@ namespace BeatTogether.LiteNetLib
         public override async Task SendAsync(EndPoint endPoint, Memory<byte> buffer)
         {
             if (_packetLayer != null)
-                _packetLayer.ProcessOutBoundPacket(endPoint, ref buffer);
+            {
+                Memory<byte> OutBuffer = new(buffer.ToArray());
+                _packetLayer.ProcessOutBoundPacket(endPoint, ref OutBuffer);
+                buffer = OutBuffer;
+            }
             await base.SendAsync(endPoint, buffer);
         }
 
         public override void SendSerial(EndPoint endPoint, Span<byte> buffer)
         {
             if (_packetLayer != null)
-                _packetLayer.ProcessOutBoundPacket(endPoint, ref buffer);
+            {
+                Span<byte> OutData = new(buffer.ToArray());
+                _packetLayer.ProcessOutBoundPacket(endPoint, ref OutData);
+                buffer = OutData;
+            }
             base.SendSerial(endPoint, buffer);
         }
 
@@ -143,11 +156,11 @@ namespace BeatTogether.LiteNetLib
         /// </summary>
         /// <param name="endPoint">Endpoint to send packet to</param>
         /// <param name="packet">The raw data to send (must include LiteNetLib headers)</param>
-        public virtual void SendAsync(EndPoint endPoint, INetSerializable packet)
+        public async virtual void SendAsync(EndPoint endPoint, INetSerializable packet)
         {
-            var bufferWriter = new SpanBuffer(stackalloc byte[412]);
+            var bufferWriter = new MemoryBuffer(GC.AllocateArray<byte>(412, true));
             packet.WriteTo(ref bufferWriter);
-            SendAsync(endPoint, bufferWriter.Data.ToArray().AsMemory());
+            await SendAsync(endPoint, bufferWriter.Data);
         }
 
         /// <summary>
