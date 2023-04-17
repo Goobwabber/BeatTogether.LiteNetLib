@@ -42,13 +42,13 @@ namespace BeatTogether.LiteNetLib.Dispatchers
         public Task Send(EndPoint endPoint, Memory<byte> message, DeliveryMethod method)
         {
             if (method == DeliveryMethod.Unreliable)
-                return SendUnreliable(endPoint, message.Span);
+                return SendUnreliable(endPoint, message);
             var channelId = (byte)method;
             if (method == DeliveryMethod.Sequenced) {
                 var window = _channelWindows.GetOrAdd(endPoint, _ => new())
                     .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
                 _ = window.Enqueue(out int queueIndex);
-                return SendChanneled(endPoint, message.Span, channelId, queueIndex);
+                return SendChanneled(endPoint, message, channelId, queueIndex);
             }
             if (message.Length + ChanneledHeaderSize + 256 <= _configuration.MaxPacketSize)
                 return SendAndRetry(endPoint, message, channelId);
@@ -139,6 +139,20 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             _server.SendSerial(endPoint, bufferWriter.Data);
             return Task.CompletedTask;
         }
+        private Task SendChanneled(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int sequence)
+        {
+            if (message.Length > _configuration.MaxPacketSize)
+                throw new Exception();
+            var bufferWriter = new MemoryBuffer(GC.AllocateArray<byte>(message.Length + ChanneledHeaderSize, pinned: true));
+            new ChanneledHeader
+            {
+                ChannelId = channelId,
+                Sequence = (ushort)sequence
+            }.WriteTo(ref bufferWriter);
+            bufferWriter.WriteBytes(message.Span);
+            _ = _server.SendAsync(endPoint, bufferWriter.Data);
+            return Task.CompletedTask;
+        }
 
         UnreliableHeader unreliableHeader = new UnreliableHeader();
         private Task SendUnreliable(EndPoint endPoint, ReadOnlySpan<byte> message)
@@ -149,6 +163,17 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             unreliableHeader.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message);
             _server.SendSerial(endPoint, bufferWriter.Data);
+            return Task.CompletedTask;
+        }
+
+        private Task SendUnreliable(EndPoint endPoint, ReadOnlyMemory<byte> message)
+        {
+            if (message.Length > _configuration.MaxPacketSize)
+                throw new Exception();
+            var bufferWriter = new MemoryBuffer(GC.AllocateArray<byte>(message.Length + 1, pinned: true), false);
+            unreliableHeader.WriteTo(ref bufferWriter);
+            bufferWriter.WriteBytes(message.Span);
+            _ = _server.SendAsync(endPoint, bufferWriter.Data);
             return Task.CompletedTask;
         }
 
