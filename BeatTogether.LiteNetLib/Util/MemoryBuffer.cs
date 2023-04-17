@@ -14,7 +14,7 @@ namespace BeatTogether.LiteNetLib.Util
         private Memory<byte> _buffer;
 
         private int _offset;
-        
+        public int Offset => _offset;
         public ReadOnlyMemory<byte> ReadOnlyData => _buffer.Slice(0, _offset);
         public Memory<byte> Data => _buffer.Slice(0, _offset);
         public int Size => _offset;

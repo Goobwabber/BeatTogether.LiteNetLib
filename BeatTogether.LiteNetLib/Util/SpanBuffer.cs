@@ -14,7 +14,7 @@ namespace BeatTogether.LiteNetLib.Util
         private Span<byte> _buffer;
 
         private int _offset;
-
+        public int Offset => _offset;
         public ReadOnlySpan<byte> ReadOnlyData => _buffer.Slice(0, _offset);
         public Span<byte> Data => _buffer.Slice(0, _offset);
         public int Size => _offset;
