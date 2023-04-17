@@ -3,7 +3,7 @@ using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Models;
-using Krypton.Buffers;
+using BeatTogether.LiteNetLib.Util;
 using System;
 using System.Collections.Concurrent;
 using System.Net;
@@ -34,7 +34,12 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             _server.ClientDisconnectEvent += HandleDisconnect;
         }
 
-        public Task Send(EndPoint endPoint, ReadOnlySpan<byte> message, DeliveryMethod method)
+        public Task Send(EndPoint endPoint, Span<byte> message, DeliveryMethod method)
+        {
+            return Send(endPoint, message.ToArray().AsMemory(), method);
+        }
+
+        public Task Send(EndPoint endPoint, Memory<byte> message, DeliveryMethod method)
         {
             if (method == DeliveryMethod.Unreliable)
                 return SendUnreliable(endPoint, message);
@@ -46,7 +51,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 return SendChanneled(endPoint, message, channelId, queueIndex);
             }
             if (message.Length + ChanneledHeaderSize + 256 <= _configuration.MaxPacketSize)
-                return SendAndRetry(endPoint, new Memory<byte>(message.ToArray()), channelId);
+                return SendAndRetry(endPoint, message, channelId);
 
             int maxMessageSize =  _configuration.MaxPacketSize - FragmentedHeaderSize - 256;
             int fragmentCount = message.Length / maxMessageSize + ((message.Length % maxMessageSize == 0) ? 0 : 1);
@@ -61,11 +66,11 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             }
 
             Task[] fragmentTasks = new Task[fragmentCount];
-            var bufferReader = new SpanBufferReader(message);
+            var bufferReader = new MemoryBuffer(message);
             for (ushort i = 0; i < fragmentCount; i++)
             {
                 var sliceSize = bufferReader.RemainingSize > maxMessageSize ? maxMessageSize : bufferReader.RemainingSize;
-                var memSlice = new Memory<byte>(bufferReader.ReadBytes(sliceSize).ToArray());
+                var memSlice = bufferReader.ReadBytes(sliceSize);
                 fragmentTasks[i] = SendAndRetry(endPoint, memSlice, channelId, true, fragmentId, i, (ushort)fragmentCount);
             }
             return Task.WhenAll(fragmentTasks);
@@ -76,7 +81,10 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             var window = _channelWindows.GetOrAdd(endPoint, _ => new())
                 .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
             await window.Enqueue(out int queueIndex);
-            Memory<byte> fullMessage = WriteHeader(new ChanneledHeader
+            int MessageLength = fragmented ? message.Length + FragmentedHeaderSize : message.Length + ChanneledHeaderSize;
+            MemoryBuffer FullMessage = new(GC.AllocateArray<byte>(MessageLength, pinned: true), false);
+
+            WriteHeader(new ChanneledHeader
             {
                 IsFragmented = fragmented,
                 ChannelId = channelId,
@@ -84,7 +92,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 FragmentId = fragmentId,
                 FragmentPart = fragmentPart,
                 FragmentsTotal = fragmentsTotal
-            }, message);
+            },ref FullMessage, message);
             var ackTask = window.WaitForDequeue(queueIndex);
             var ackCts = new CancellationTokenSource();
             _ = ackTask.ContinueWith(_ => ackCts.Cancel()); // Cancel if acknowledged
@@ -97,34 +105,52 @@ namespace BeatTogether.LiteNetLib.Dispatchers
 
                 if (ackTask.IsCompleted)
                     return;
-                _server.SendAsync(endPoint, fullMessage);
+                await _server.SendAsync(endPoint, FullMessage.Data);
                 await Task.WhenAny(
                     ackTask,
                     Task.Delay(_configuration.ReliableRetryDelay)
                 );
             }
         }
-
-        private Memory<byte> WriteHeader(INetSerializable header, Memory<byte> message)
+        /// <summary>
+        /// Expects the incomming MemoryBuffer to the exact length of the message to be sent
+        /// </summary>
+        /// <param name="header"></param>
+        /// <param name="FullMessage"></param>
+        /// <param name="Message"></param>
+        private static void WriteHeader(INetSerializable header, ref MemoryBuffer FullMessage, Memory<byte> Message)
         {
-            var memoryWriter = new SpanBufferWriter(stackalloc byte[412]);
-            header.WriteTo(ref memoryWriter);
-            memoryWriter.WriteBytes(message.Span);
-            return new Memory<byte>(memoryWriter.Data.ToArray());
+            header.WriteTo(ref FullMessage);
+            FullMessage.WriteBytes(Message.Span);
         }
+
 
         private Task SendChanneled(EndPoint endPoint, ReadOnlySpan<byte> message, byte channelId, int sequence)
         {
             if (message.Length > _configuration.MaxPacketSize)
                 throw new Exception();
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
+            var bufferWriter = new SpanBuffer(stackalloc byte[message.Length + ChanneledHeaderSize]);
             new ChanneledHeader
             {
                 ChannelId = channelId,
                 Sequence = (ushort)sequence
             }.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message);
-            _server.SendAsync(endPoint, bufferWriter.Data.ToArray());
+            _server.SendSerial(endPoint, bufferWriter.Data);
+            return Task.CompletedTask;
+        }
+        private Task SendChanneled(EndPoint endPoint, ReadOnlyMemory<byte> message, byte channelId, int sequence)
+        {
+            if (message.Length > _configuration.MaxPacketSize)
+                throw new Exception();
+            var bufferWriter = new MemoryBuffer(GC.AllocateArray<byte>(message.Length + ChanneledHeaderSize, pinned: true));
+            new ChanneledHeader
+            {
+                ChannelId = channelId,
+                Sequence = (ushort)sequence
+            }.WriteTo(ref bufferWriter);
+            bufferWriter.WriteBytes(message.Span);
+            _ = _server.SendAsync(endPoint, bufferWriter.Data);
             return Task.CompletedTask;
         }
 
@@ -133,10 +159,21 @@ namespace BeatTogether.LiteNetLib.Dispatchers
         {
             if (message.Length > _configuration.MaxPacketSize)
                 throw new Exception();
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
+            var bufferWriter = new SpanBuffer(stackalloc byte[message.Length + 1], false);
             unreliableHeader.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message);
-            _server.SendAsync(endPoint, bufferWriter.Data.ToArray());
+            _server.SendSerial(endPoint, bufferWriter.Data);
+            return Task.CompletedTask;
+        }
+
+        private Task SendUnreliable(EndPoint endPoint, ReadOnlyMemory<byte> message) //The serial method works well without triggering the garbage collector constantly, this does but allows for more to be sent though the socket
+        {
+            if (message.Length > _configuration.MaxPacketSize)
+                throw new Exception();
+            var bufferWriter = new MemoryBuffer(GC.AllocateArray<byte>(message.Length + 1, pinned: true), false);
+            unreliableHeader.WriteTo(ref bufferWriter);
+            bufferWriter.WriteBytes(message.Span);
+            _ = _server.SendAsync(endPoint, bufferWriter.Data);
             return Task.CompletedTask;
         }
 

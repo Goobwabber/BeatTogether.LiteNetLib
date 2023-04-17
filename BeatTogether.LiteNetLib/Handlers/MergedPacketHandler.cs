@@ -1,5 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Headers;
+using BeatTogether.LiteNetLib.Util;
 using Krypton.Buffers;
 using System;
 using System.Net;
@@ -17,11 +18,11 @@ namespace BeatTogether.LiteNetLib.Handlers
             _server = server;
         }
 
-        public override Task Handle(EndPoint endPoint, MergedHeader packet, ref SpanBufferReader reader)
+        public override Task Handle(EndPoint endPoint, MergedHeader packet, ref MemoryBuffer reader)
         {
             while (reader.RemainingSize > 0)
             {
-                ReadOnlySpan<byte> newPacket;
+                Memory<byte> newPacket;
                 try
                 {
                     ushort size = reader.ReadUInt16();

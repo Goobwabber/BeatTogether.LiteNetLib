@@ -4,6 +4,7 @@ using BeatTogether.LiteNetLib;
 using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Sources;
+using BeatTogether.LiteNetLib.Util;
 using Krypton.Buffers;
 using Microsoft.Extensions.Logging;
 
@@ -18,7 +19,7 @@ public class TestSource : ConnectedMessageSource
         _logger = logger;
     }
 
-    public override void OnReceive(EndPoint remoteEndPoint, ref SpanBufferReader reader, DeliveryMethod method)
+    public override void OnReceive(EndPoint remoteEndPoint, ref MemoryBuffer reader, DeliveryMethod method)
     {
         // _logger.LogInformation("Got Packet");
     }
