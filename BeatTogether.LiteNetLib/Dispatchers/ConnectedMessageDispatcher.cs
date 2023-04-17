@@ -4,12 +4,9 @@ using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Models;
 using BeatTogether.LiteNetLib.Util;
-using Krypton.Buffers;
 using System;
 using System.Collections.Concurrent;
-using System.Diagnostics;
 using System.Net;
-using System.Reflection.PortableExecutable;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -35,6 +32,11 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             _server = server;
 
             _server.ClientDisconnectEvent += HandleDisconnect;
+        }
+
+        public Task Send(EndPoint endPoint, Span<byte> message, DeliveryMethod method)
+        {
+            return Send(endPoint, message.ToArray().AsMemory(), method);
         }
 
         public Task Send(EndPoint endPoint, Memory<byte> message, DeliveryMethod method)
