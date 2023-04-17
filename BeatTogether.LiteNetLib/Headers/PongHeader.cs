@@ -1,5 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers.Abstractions;
+using BeatTogether.LiteNetLib.Util;
 using Krypton.Buffers;
 
 namespace BeatTogether.LiteNetLib.Headers
@@ -10,14 +11,27 @@ namespace BeatTogether.LiteNetLib.Headers
         public ushort Sequence { get; set; }
         public long Time { get; set; }
 
-        public override void ReadFrom(ref SpanBufferReader bufferReader)
+        public override void ReadFrom(ref SpanBuffer bufferReader)
         {
             base.ReadFrom(ref bufferReader);
             Sequence = bufferReader.ReadUInt16();
             Time = bufferReader.ReadInt64();
         }
 
-        public override void WriteTo(ref SpanBufferWriter bufferWriter)
+        public override void WriteTo(ref SpanBuffer bufferWriter)
+        {
+            base.WriteTo(ref bufferWriter);
+            bufferWriter.WriteUInt16(Sequence);
+            bufferWriter.WriteInt64(Time);
+        }
+        public override void ReadFrom(ref MemoryBuffer bufferReader)
+        {
+            base.ReadFrom(ref bufferReader);
+            Sequence = bufferReader.ReadUInt16();
+            Time = bufferReader.ReadInt64();
+        }
+
+        public override void WriteTo(ref MemoryBuffer bufferWriter)
         {
             base.WriteTo(ref bufferWriter);
             bufferWriter.WriteUInt16(Sequence);

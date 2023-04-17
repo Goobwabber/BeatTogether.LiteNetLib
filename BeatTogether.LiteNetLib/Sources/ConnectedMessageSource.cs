@@ -2,7 +2,7 @@
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Models;
-using Krypton.Buffers;
+using BeatTogether.LiteNetLib.Util;
 using System;
 using System.Collections.Concurrent;
 using System.Net;
@@ -32,17 +32,17 @@ namespace BeatTogether.LiteNetLib.Sources
         public void HandleDisconnect(EndPoint endPoint, DisconnectReason reason)
             => _channelWindows.TryRemove(endPoint, out _);
 
-        public virtual void Signal(EndPoint remoteEndPoint, UnreliableHeader header, ref SpanBufferReader reader)
+        public virtual void Signal(EndPoint remoteEndPoint, UnreliableHeader header, ref MemoryBuffer reader)
             => OnReceive(remoteEndPoint, ref reader, DeliveryMethod.Unreliable);
 
-        public virtual void Signal(EndPoint remoteEndPoint, ChanneledHeader header, ref SpanBufferReader reader)
+        public virtual void Signal(EndPoint remoteEndPoint, ChanneledHeader header, ref MemoryBuffer reader)
         {
             var window = _channelWindows.GetOrAdd(remoteEndPoint, _ => new())
                 .GetOrAdd(header.ChannelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
             var alreadyReceived = !window.Add(header.Sequence);
             var windowArray = window.GetWindow(out int windowPosition);
 
-            _server.SendAsync(remoteEndPoint, new AckHeader
+            _server.Send(remoteEndPoint, new AckHeader
             {
                 Sequence = (ushort)windowPosition,
                 ChannelId = header.ChannelId,
@@ -55,13 +55,12 @@ namespace BeatTogether.LiteNetLib.Sources
                 var builder = _fragmentBuilders.GetOrAdd(remoteEndPoint, _ => new())
                     .GetOrAdd(header.FragmentId, _ => new(header.FragmentsTotal));
 
-                if (builder.AddFragment(header.FragmentPart, reader.RemainingData))
+                if (builder.AddFragment(header.FragmentPart, reader.RemainingData.Span))
                 {
-                    var writer = new SpanBufferWriter(412);
-                    builder.WriteTo(ref writer);
-                    var fragmentReader = new SpanBufferReader(writer.Data);
-
-                    OnReceive(remoteEndPoint, ref fragmentReader, (DeliveryMethod)header.ChannelId);
+                    var fragmentReader = new SpanBuffer(stackalloc byte[header.FragmentsTotal*1024]); //Almost max size of packet * total fragments
+                    builder.WriteTo(ref fragmentReader);
+                    MemoryBuffer CombinedFragments = new(fragmentReader.Data.ToArray());
+                    OnReceive(remoteEndPoint, ref CombinedFragments, (DeliveryMethod)header.ChannelId);
                 }
             }
             else
@@ -72,6 +71,6 @@ namespace BeatTogether.LiteNetLib.Sources
             }
         }
 
-        public abstract void OnReceive(EndPoint remoteEndPoint, ref SpanBufferReader reader, DeliveryMethod method);
+        public abstract void OnReceive(EndPoint remoteEndPoint, ref MemoryBuffer reader, DeliveryMethod method);
     }
 }

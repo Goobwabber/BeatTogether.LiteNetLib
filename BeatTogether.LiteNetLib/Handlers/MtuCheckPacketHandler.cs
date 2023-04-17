@@ -1,6 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Headers;
-using Krypton.Buffers;
+using BeatTogether.LiteNetLib.Util;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -16,10 +16,10 @@ namespace BeatTogether.LiteNetLib.Handlers
             _server = server;
         }
 
-        public override Task Handle(EndPoint endPoint, MtuCheckHeader packet, ref SpanBufferReader reader)
+        public override Task Handle(EndPoint endPoint, MtuCheckHeader packet, ref MemoryBuffer reader)
         {
             // Normally would check mtu - dont care lol, send back 'ok'
-            _server.SendAsync(endPoint, new MtuOkHeader
+            _server.Send(endPoint, new MtuOkHeader
             {
                 Mtu = packet.Mtu,
                 PadSize = packet.PadSize,

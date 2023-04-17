@@ -1,4 +1,5 @@
-﻿using Krypton.Buffers;
+﻿using BeatTogether.LiteNetLib.Util;
+using Krypton.Buffers;
 using System;
 using System.Drawing;
 using System.Net;
@@ -8,7 +9,7 @@ namespace BeatTogether.LiteNetLib.Extensions
 {
     public static class SpanBufferWriterExtensions
     {
-        public static void WriteVarULong(this ref SpanBufferWriter bufferWriter, ulong value)
+        public static void WriteVarULong(this ref SpanBuffer bufferWriter, ulong value)
         {
             do
             {
@@ -20,34 +21,34 @@ namespace BeatTogether.LiteNetLib.Extensions
             } while (value != 0UL);
         }
 
-        public static void WriteVarLong(this ref SpanBufferWriter bufferWriter, long value)
+        public static void WriteVarLong(this ref SpanBuffer bufferWriter, long value)
             => bufferWriter.WriteVarULong((value < 0L ? (ulong)((-value << 1) - 1L) : (ulong)(value << 1)));
 
-        public static void WriteVarUInt(this ref SpanBufferWriter buffer, uint value)
+        public static void WriteVarUInt(this ref SpanBuffer buffer, uint value)
             => buffer.WriteVarULong(value);
 
-        public static void WriteVarInt(this ref SpanBufferWriter bufferWriter, int value)
+        public static void WriteVarInt(this ref SpanBuffer bufferWriter, int value)
             => bufferWriter.WriteVarLong(value);
 
-        public static void WriteVarBytes(this ref SpanBufferWriter bufferWriter, ReadOnlySpan<byte> bytes)
+        public static void WriteVarBytes(this ref SpanBuffer bufferWriter, ReadOnlySpan<byte> bytes)
         {
             bufferWriter.WriteVarUInt((uint)bytes.Length);
             bufferWriter.WriteBytes(bytes);
         }
 
-        public static void WriteString(this ref SpanBufferWriter bufferWriter, string value)
+        public static void WriteString(this ref SpanBuffer bufferWriter, string value)
         {
             bufferWriter.WriteInt32(Encoding.UTF8.GetByteCount(value));
             bufferWriter.WriteBytes(Encoding.UTF8.GetBytes(value));
         }
 
-        public static void WriteIPEndPoint(this ref SpanBufferWriter bufferWriter, IPEndPoint ipEndPoint)
+        public static void WriteIPEndPoint(this ref SpanBuffer bufferWriter, IPEndPoint ipEndPoint)
         {
             bufferWriter.WriteString(ipEndPoint.Address.ToString());
             bufferWriter.WriteInt32(ipEndPoint.Port);
         }
 
-        public static void WriteColor(this ref SpanBufferWriter writer, Color value)
+        public static void WriteColor(this ref SpanBuffer writer, Color value)
         {
             writer.WriteUInt8(value.R);
             writer.WriteUInt8(value.G);

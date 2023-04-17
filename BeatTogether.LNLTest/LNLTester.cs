@@ -81,7 +81,7 @@ namespace BeatTogether.LNLTest
             _testServer = _serviceProvider.GetRequiredService<TestServer>();
             await _testServer.StartAsync(CancellationToken.None);
 
-            ConnectWayTooManyClients(128);
+            ConnectWayTooManyClients(256);
             WaitUntilAllSettled();
             
             _logger.LogInformation("All connected");
@@ -101,9 +101,9 @@ namespace BeatTogether.LNLTest
 
                     if (garbageCtr > 50)
                     {
-                        _clientPool.SendGarbage(DeliveryMethod.Unreliable);
+                        _clientPool.SendGarbage(DeliveryMethod.ReliableOrdered);
                     }
-                    
+
                     if (pollCtr > 3)
                     {
                         pollCtr -= 3;

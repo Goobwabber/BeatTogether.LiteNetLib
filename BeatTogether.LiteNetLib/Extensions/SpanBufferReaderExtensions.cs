@@ -1,4 +1,5 @@
-﻿using Krypton.Buffers;
+﻿using BeatTogether.LiteNetLib.Util;
+using Krypton.Buffers;
 using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Drawing;
@@ -9,7 +10,7 @@ namespace BeatTogether.LiteNetLib.Extensions
 {
     public static class SpanBufferReaderExtensions
     {
-        public static ulong ReadVarULong(this ref SpanBufferReader bufferReader)
+        public static ulong ReadVarULong(this ref SpanBuffer bufferReader)
         {
             var value = 0UL;
             var shift = 0;
@@ -23,7 +24,7 @@ namespace BeatTogether.LiteNetLib.Extensions
             return value | (ulong)b << shift;
         }
 
-        public static long ReadVarLong(this ref SpanBufferReader bufferReader)
+        public static long ReadVarLong(this ref SpanBuffer bufferReader)
         {
             var varULong = (long)bufferReader.ReadVarULong();
             if ((varULong & 1L) != 1L)
@@ -31,13 +32,13 @@ namespace BeatTogether.LiteNetLib.Extensions
             return -(varULong >> 1) + 1L;
         }
 
-        public static uint ReadVarUInt(this ref SpanBufferReader bufferReader)
+        public static uint ReadVarUInt(this ref SpanBuffer bufferReader)
             => (uint)bufferReader.ReadVarULong();
 
-        public static int ReadVarInt(this ref SpanBufferReader bufferReader)
+        public static int ReadVarInt(this ref SpanBuffer bufferReader)
             => (int)bufferReader.ReadVarLong();
 
-        public static bool TryReadVarULong(this ref SpanBufferReader bufferReader, out ulong value)
+        public static bool TryReadVarULong(this ref SpanBuffer bufferReader, out ulong value)
         {
             value = 0UL;
             var shift = 0;
@@ -54,7 +55,7 @@ namespace BeatTogether.LiteNetLib.Extensions
             return false;
         }
 
-        public static bool TryReadVarUInt(this ref SpanBufferReader bufferReader, out uint value)
+        public static bool TryReadVarUInt(this ref SpanBuffer bufferReader, out uint value)
         {
             ulong num;
             if (bufferReader.TryReadVarULong(out num) && (num >> 32) == 0UL)
@@ -67,13 +68,13 @@ namespace BeatTogether.LiteNetLib.Extensions
             return false;
         }
 
-        public static ReadOnlySpan<byte> ReadVarBytes(this ref SpanBufferReader bufferReader)
+        public static ReadOnlySpan<byte> ReadVarBytes(this ref SpanBuffer bufferReader)
         {
             var length = bufferReader.ReadVarUInt();
             return bufferReader.ReadBytes((int)length);
         }
 
-        public static string ReadString(this ref SpanBufferReader bufferReader, int maxLength = 65535)
+        public static string ReadString(this ref SpanBuffer bufferReader, int maxLength = 65535)
         {
             var length = bufferReader.ReadInt32();
             if (length <= 0 | length > maxLength)
@@ -82,7 +83,7 @@ namespace BeatTogether.LiteNetLib.Extensions
             return Encoding.UTF8.GetString(bytes);
         }
 
-        public static IPEndPoint ReadIPEndPoint(this ref SpanBufferReader bufferReader)
+        public static IPEndPoint ReadIPEndPoint(this ref SpanBuffer bufferReader)
         {
             if (!IPAddress.TryParse(bufferReader.ReadString(512), out var address))
                 throw new ArgumentException("Failed to parse IP address");
@@ -90,7 +91,7 @@ namespace BeatTogether.LiteNetLib.Extensions
             return new IPEndPoint(address, port);
         }
 
-        public static Color ReadColor(this ref SpanBufferReader reader)
+        public static Color ReadColor(this ref SpanBuffer reader)
         {
             var r = reader.ReadByte();
             var g = reader.ReadByte();
