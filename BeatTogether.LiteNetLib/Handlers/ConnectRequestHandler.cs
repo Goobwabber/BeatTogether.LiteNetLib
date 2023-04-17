@@ -1,6 +1,6 @@
 using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Headers;
-using BeatTogether.LiteNetLib.Util;
+using Krypton.Buffers;
 using Microsoft.Extensions.Logging;
 using System.Net;
 using System.Threading.Tasks;
@@ -22,7 +22,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             _logger = logger;
         }
 
-        public override Task Handle(EndPoint endPoint, ConnectRequestHeader packet, ref MemoryBuffer reader)
+        public override Task Handle(EndPoint endPoint, ConnectRequestHeader packet, ref SpanBufferReader reader)
         {
             _logger.LogDebug($"Received connection request from {endPoint}");
             if (packet.ProtocolId != ProtocolId)

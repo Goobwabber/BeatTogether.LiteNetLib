@@ -2,7 +2,7 @@
 using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Sources;
-using BeatTogether.LiteNetLib.Util;
+using Krypton.Buffers;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -21,7 +21,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             _messageSource = messageSource;
         }
 
-        public override Task Handle(EndPoint endPoint, ChanneledHeader packet, ref MemoryBuffer reader)
+        public override Task Handle(EndPoint endPoint, ChanneledHeader packet, ref SpanBufferReader reader)
         {
             if (_messageSource == null)
                 return Task.CompletedTask;

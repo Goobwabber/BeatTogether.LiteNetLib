@@ -156,7 +156,7 @@ namespace BeatTogether.LiteNetLib.Tests
 
             _server.ClientConnectEvent += endPoint =>
             {
-                _messageDispatcher.Send(endPoint, MakeTest(testSize, test).AsSpan(), Enums.DeliveryMethod.ReliableOrdered);
+                _messageDispatcher.Send(endPoint, new ReadOnlySpan<byte>(MakeTest(testSize, test)), Enums.DeliveryMethod.ReliableOrdered);
                 msgDelivered = true;
             };
             _clientNetListener.NetworkReceiveEvent += (endPoint, data, method) =>
@@ -228,7 +228,7 @@ namespace BeatTogether.LiteNetLib.Tests
 
             _server.ClientConnectEvent += endPoint =>
             {
-                _messageDispatcher.Send(endPoint, MakeTest(testSize, test).AsSpan(), Enums.DeliveryMethod.ReliableOrdered);
+                _messageDispatcher.Send(endPoint, new ReadOnlySpan<byte>(MakeTest(testSize, test)), Enums.DeliveryMethod.ReliableOrdered);
                 msgDelivered = true;
             };
             _clientNetListener.NetworkReceiveEvent += (endPoint, data, method) =>

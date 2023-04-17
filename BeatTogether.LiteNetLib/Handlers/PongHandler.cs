@@ -1,6 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Headers;
-using BeatTogether.LiteNetLib.Util;
+using Krypton.Buffers;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -16,7 +16,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             _server = server;
         }
 
-        public override Task Handle(EndPoint endPoint, PongHeader packet, ref MemoryBuffer reader)
+        public override Task Handle(EndPoint endPoint, PongHeader packet, ref SpanBufferReader reader)
         {
             _server.HandlePong(endPoint, packet.Sequence, packet.Time);
             return Task.CompletedTask;

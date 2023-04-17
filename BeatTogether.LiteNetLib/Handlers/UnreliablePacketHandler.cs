@@ -2,7 +2,6 @@
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Sources;
-using BeatTogether.LiteNetLib.Util;
 using Krypton.Buffers;
 using System.Net;
 using System.Threading.Tasks;
@@ -19,7 +18,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             _messageSource = messageSource;
         }
 
-        public override Task Handle(EndPoint endPoint, UnreliableHeader packet, ref MemoryBuffer reader)
+        public override Task Handle(EndPoint endPoint, UnreliableHeader packet, ref SpanBufferReader reader)
         {
             if (_messageSource != null)
                 _messageSource.Signal(endPoint, packet, ref reader);

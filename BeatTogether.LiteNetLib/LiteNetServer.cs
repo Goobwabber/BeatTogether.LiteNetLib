@@ -10,8 +10,6 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using AsyncUdp;
-using BeatTogether.LiteNetLib.Util;
-using System.Buffers;
 
 namespace BeatTogether.LiteNetLib
 {
@@ -64,26 +62,22 @@ namespace BeatTogether.LiteNetLib
         {
             if (_lastPacketTimes.ContainsKey(endPoint))
                 _lastPacketTimes[endPoint] = DateTime.UtcNow.Ticks;
-            ReceivePacket(endPoint, buffer);
+            ReceivePacket(endPoint, buffer.Span);
         }
 
-        private void ReceivePacket(EndPoint endPoint, Memory<byte> buffer)
+        private void ReceivePacket(EndPoint endPoint, Span<byte> buffer)
         {
             if (_packetLayer != null)
-            {
-                Memory<byte> IncommingData = new(buffer.ToArray());
-                _packetLayer.ProcessInboundPacket(endPoint, ref IncommingData);
-                buffer = IncommingData;
-            }
+                _packetLayer.ProcessInboundPacket(endPoint, ref buffer);
             HandlePacket(endPoint, buffer);
         }
 
-        internal protected virtual void HandlePacket(EndPoint endPoint, Memory<byte> buffer)
+        internal protected virtual void HandlePacket(EndPoint endPoint, ReadOnlySpan<byte> buffer)
         {
             if (buffer.Length > 0)
             {
-                var bufferReader = new MemoryBuffer(buffer);
-                PacketProperty property = (PacketProperty)(buffer.Span[0] & 0x1f); // 0x1f 00011111
+                var bufferReader = new SpanBufferReader(buffer);
+                PacketProperty property = (PacketProperty)(buffer[0] & 0x1f); // 0x1f 00011111
                 if (!_packetRegistry.TryCreatePacket(property, out var packet))
                     return;
                 try
@@ -100,26 +94,20 @@ namespace BeatTogether.LiteNetLib
             }
         }
 
-        public override async Task SendAsync(EndPoint endPoint, Memory<byte> buffer)
+        public override void SendAsync(EndPoint endPoint, Memory<byte> buffer)
         {
-            if (_packetLayer != null)
-            {
-                Memory<byte> OutBuffer = new(buffer.ToArray());
-                _packetLayer.ProcessOutBoundPacket(endPoint, ref OutBuffer);
-                buffer = OutBuffer;
-            }
-            await base.SendAsync(endPoint, buffer);
+            ProcessOutbound(endPoint, ref buffer);
+            base.SendAsync(endPoint, buffer);
         }
 
-        public override void SendSerial(EndPoint endPoint, Span<byte> buffer)
+        private void ProcessOutbound(EndPoint endPoint, ref Memory<byte> buffer)
         {
             if (_packetLayer != null)
             {
-                Span<byte> OutData = new(buffer.ToArray());
-                _packetLayer.ProcessOutBoundPacket(endPoint, ref OutData);
-                buffer = OutData;
+                Span<byte> span = buffer.Span;
+                _packetLayer.ProcessOutBoundPacket(endPoint, ref span);
+                buffer = span.ToArray();
             }
-            base.SendSerial(endPoint, buffer);
         }
 
         /// <summary>
@@ -148,19 +136,19 @@ namespace BeatTogether.LiteNetLib
         /// <param name="endPoint">Endpoint connection request was received from</param>
         /// <param name="additionalData">Additional data sent with the request</param>
         /// <returns></returns>
-        public virtual bool ShouldAcceptConnection(EndPoint endPoint, ref MemoryBuffer additionalData)
+        public virtual bool ShouldAcceptConnection(EndPoint endPoint, ref SpanBufferReader additionalData)
             => false;
 
         /// <summary>
-        /// Sends a raw serializable packet to an async endpoint
+        /// Sends a raw serializable packet to an endpoint
         /// </summary>
         /// <param name="endPoint">Endpoint to send packet to</param>
         /// <param name="packet">The raw data to send (must include LiteNetLib headers)</param>
-        public async virtual void SendAsync(EndPoint endPoint, INetSerializable packet)
+        public virtual void SendAsync(EndPoint endPoint, INetSerializable packet)
         {
-            var bufferWriter = new MemoryBuffer(GC.AllocateArray<byte>(412, true));
+            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             packet.WriteTo(ref bufferWriter);
-            await SendAsync(endPoint, bufferWriter.Data);
+            SendAsync(endPoint, new Memory<byte>(bufferWriter.Data.ToArray()));
         }
 
         /// <summary>
@@ -171,10 +159,10 @@ namespace BeatTogether.LiteNetLib
         /// <returns>Task that is completed when the packet has been sent</returns>
         public virtual void Send(EndPoint endPoint, INetSerializable packet)
         {
-            var bufferWriter = new SpanBuffer(stackalloc byte[412]);
+            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             packet.WriteTo(ref bufferWriter);
-            SendSerial(endPoint, bufferWriter.Data);
-    }
+            SendAsync(endPoint, bufferWriter.Data.ToArray().AsMemory());
+        }
 
         /// <summary>
         /// Disconnects a connected endpoint
@@ -185,7 +173,7 @@ namespace BeatTogether.LiteNetLib
         {
             if (!_connectionTimes.TryRemove(endPoint, out long connectionTime))
                 return;
-            Send(endPoint, new DisconnectHeader
+            SendAsync(endPoint, new DisconnectHeader
             {
                 ConnectionTime = connectionTime
             });

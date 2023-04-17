@@ -1,5 +1,4 @@
-﻿using BeatTogether.LiteNetLib.Util;
-using Krypton.Buffers;
+﻿using Krypton.Buffers;
 using System;
 using System.Buffers;
 using System.Collections.Concurrent;
@@ -30,7 +29,7 @@ namespace BeatTogether.LiteNetLib.Models
             }
         }
 
-        public void WriteTo(ref SpanBuffer writer)
+        public void WriteTo(ref SpanBufferWriter writer)
         {
             for (int i = 0; i < _totalFragments; i++)
                 if (_fragments.TryGetValue(i, out var memory))
