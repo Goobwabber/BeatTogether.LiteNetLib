@@ -1,5 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Enums;
+using BeatTogether.LiteNetLib.Util;
 using Krypton.Buffers;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -44,7 +45,7 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             return Task.CompletedTask;
         }
 
-        protected override void HandlePacket(EndPoint endPoint, ReadOnlySpan<byte> buffer)
+        protected override void HandlePacket(EndPoint endPoint, Span<byte> buffer)
         {
             _logger.LogTrace($"Recieved from '{endPoint}': [{string.Join(", ", buffer.ToArray())}]");
             try
@@ -57,11 +58,12 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             }
         }
 
-        public override void SendAsync(EndPoint endPoint, Memory<byte> buffer)
+        public async override Task SendAsync(EndPoint endPoint, Memory<byte> buffer)
         {
-            base.SendAsync(endPoint, buffer);
+            await base.SendAsync(endPoint, buffer);
             if (buffer.Length < 100)
                 _logger.LogTrace($"Sent packet [{string.Join(", ", buffer.ToArray())}]");
+            return;
         }
 
         public override void OnConnect(EndPoint endPoint)
@@ -79,7 +81,7 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             _logger.LogInformation($"Latency for '{endPoint}' updated to '{latency}'");
         }
 
-        public override bool ShouldAcceptConnection(EndPoint endPoint, ref SpanBufferReader additionalData)
+        public override bool ShouldAcceptConnection(EndPoint endPoint, ref SpanBuffer additionalData)
         {
             _logger.LogInformation($"Connection request received from '{endPoint}'");
             return true;

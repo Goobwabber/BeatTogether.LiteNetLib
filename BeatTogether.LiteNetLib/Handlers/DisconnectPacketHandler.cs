@@ -1,6 +1,7 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
+using BeatTogether.LiteNetLib.Util;
 using Krypton.Buffers;
 using System.Net;
 using System.Threading.Tasks;
@@ -17,7 +18,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             _server = server;
         }
 
-        public override Task Handle(EndPoint endPoint, DisconnectHeader packet, ref SpanBufferReader reader)
+        public override Task Handle(EndPoint endPoint, DisconnectHeader packet, ref SpanBuffer reader)
         {
             _server.SendAsync(endPoint, new ShutdownOkHeader());
             _server.HandleDisconnect(endPoint, DisconnectReason.RemoteConnectionClose);

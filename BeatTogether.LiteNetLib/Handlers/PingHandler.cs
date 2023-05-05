@@ -1,5 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Headers;
+using BeatTogether.LiteNetLib.Util;
 using Krypton.Buffers;
 using System;
 using System.Net;
@@ -17,7 +18,7 @@ namespace BeatTogether.LiteNetLib.Handlers
             _server = server;
         }
 
-        public override Task Handle(EndPoint endPoint, PingHeader packet, ref SpanBufferReader reader)
+        public override Task Handle(EndPoint endPoint, PingHeader packet, ref SpanBuffer reader)
         {
             _server.SendAsync(endPoint, new PongHeader
             {

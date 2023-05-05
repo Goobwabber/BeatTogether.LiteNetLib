@@ -1,5 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers.Abstractions;
+using BeatTogether.LiteNetLib.Util;
 using Krypton.Buffers;
 using System.Collections.Generic;
 
@@ -13,7 +14,7 @@ namespace BeatTogether.LiteNetLib.Headers
         public List<int> Acknowledgements { get; set; } = new();
         public int WindowSize { get; set; }
 
-        public override void ReadFrom(ref SpanBufferReader bufferReader)
+        public override void ReadFrom(ref SpanBuffer bufferReader)
         {
             base.ReadFrom(ref bufferReader);
             Sequence = bufferReader.ReadUInt16();
@@ -27,7 +28,7 @@ namespace BeatTogether.LiteNetLib.Headers
                         Acknowledgements.Add((currentByte * 8) + currentBit);
         }
 
-        public override void WriteTo(ref SpanBufferWriter bufferWriter)
+        public override void WriteTo(ref SpanBuffer bufferWriter)
         {
             base.WriteTo(ref bufferWriter);
             bufferWriter.WriteUInt16(Sequence);
