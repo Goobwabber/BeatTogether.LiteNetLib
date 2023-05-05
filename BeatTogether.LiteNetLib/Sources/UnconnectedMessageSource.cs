@@ -1,6 +1,5 @@
 ﻿using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Util;
-using Krypton.Buffers;
 using System.Net;
 
 namespace BeatTogether.LiteNetLib.Sources

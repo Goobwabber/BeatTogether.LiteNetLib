@@ -77,9 +77,8 @@ namespace BeatTogether.LiteNetLib
         {
             if (_packetLayer != null)
             {
-                Span<byte> ProcessingBuffer = stackalloc byte[2048];
-                _packetLayer.ProcessInboundPacket(endPoint, ref ProcessingBuffer);
-                HandlePacket(endPoint, ProcessingBuffer);
+                _packetLayer.ProcessInboundPacket(endPoint, ref buffer);
+                HandlePacket(endPoint, buffer);
                 return;
             }
             HandlePacket(endPoint, buffer);
@@ -126,14 +125,6 @@ namespace BeatTogether.LiteNetLib
             await SendSemaphore.WaitAsync();
             await base.SendAsync(endPoint, buffer);
             SendSemaphore.Release();
-
-
-            /*
-            ProcessOutbound(endPoint, ref buffer);
-            await SendSemaphore.WaitAsync();
-            await base.SendAsync(endPoint, buffer);
-            SendSemaphore.Release();
-            */
         }
 
         private void ProcessOutbound(EndPoint endPoint, ref Memory<byte> buffer)

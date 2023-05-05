@@ -1,7 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers.Abstractions;
 using BeatTogether.LiteNetLib.Util;
-using Krypton.Buffers;
 
 namespace BeatTogether.LiteNetLib.Headers
 {
