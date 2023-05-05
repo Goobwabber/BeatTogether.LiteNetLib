@@ -57,11 +57,12 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             }
         }
 
-        public override void SendAsync(EndPoint endPoint, Memory<byte> buffer)
+        public override Task SendAsync(EndPoint endPoint, Memory<byte> buffer)
         {
             base.SendAsync(endPoint, buffer);
             if (buffer.Length < 100)
                 _logger.LogTrace($"Sent packet [{string.Join(", ", buffer.ToArray())}]");
+            return Task.CompletedTask;
         }
 
         public override void OnConnect(EndPoint endPoint)

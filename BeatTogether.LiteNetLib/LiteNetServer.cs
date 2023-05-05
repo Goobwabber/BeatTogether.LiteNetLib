@@ -23,6 +23,8 @@ namespace BeatTogether.LiteNetLib
         private readonly ConcurrentDictionary<EndPoint, long> _connectionTimes = new();
         private readonly ConcurrentDictionary<EndPoint, long> _lastPacketTimes = new();
 
+        private SemaphoreSlim SendSemaphore;
+
         private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetPacketRegistry _packetRegistry;
         private readonly IServiceProvider _serviceProvider;
@@ -34,12 +36,13 @@ namespace BeatTogether.LiteNetLib
             LiteNetPacketRegistry packetRegistry,
             IServiceProvider serviceProvider,
             IPacketLayer? packetLayer = null)
-            : base(endPoint, configuration.RecieveAsync, configuration.MaxHandlesWhileRecieving)
+            : base(endPoint, configuration.RecieveAsync, 10, 2048)
         {
             _configuration = configuration;
             _packetRegistry = packetRegistry;
             _serviceProvider = serviceProvider;
             _packetLayer = packetLayer;
+            SendSemaphore = new(_configuration.MaxConcurrentSends);
         }
 
         public LiteNetServer(
@@ -50,12 +53,13 @@ namespace BeatTogether.LiteNetLib
             bool RecvAsync,
             int AsyncCount,
             IPacketLayer? packetLayer = null)
-            : base(endPoint, RecvAsync, AsyncCount)
+            : base(endPoint, RecvAsync, AsyncCount, 2048)
         {
             _configuration = configuration;
             _packetRegistry = packetRegistry;
             _serviceProvider = serviceProvider;
             _packetLayer = packetLayer;
+            SendSemaphore = new(_configuration.MaxConcurrentSends);
         }
 
         protected override void OnReceived(EndPoint endPoint, Memory<byte> buffer)
@@ -94,10 +98,14 @@ namespace BeatTogether.LiteNetLib
             }
         }
 
-        public override void SendAsync(EndPoint endPoint, Memory<byte> buffer)
+        
+
+        public async override Task SendAsync(EndPoint endPoint, Memory<byte> buffer)
         {
             ProcessOutbound(endPoint, ref buffer);
-            base.SendAsync(endPoint, buffer);
+            await SendSemaphore.WaitAsync();
+            await base.SendAsync(endPoint, buffer);
+            SendSemaphore.Release();
         }
 
         private void ProcessOutbound(EndPoint endPoint, ref Memory<byte> buffer)
@@ -148,7 +156,7 @@ namespace BeatTogether.LiteNetLib
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             packet.WriteTo(ref bufferWriter);
-            SendAsync(endPoint, new Memory<byte>(bufferWriter.Data.ToArray()));
+            _ = SendAsync(endPoint, new Memory<byte>(bufferWriter.Data.ToArray()));
         }
 
         /// <summary>
@@ -161,7 +169,7 @@ namespace BeatTogether.LiteNetLib
         {
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             packet.WriteTo(ref bufferWriter);
-            SendAsync(endPoint, bufferWriter.Data.ToArray().AsMemory());
+            _ = SendAsync(endPoint, bufferWriter.Data.ToArray().AsMemory());
         }
 
         /// <summary>

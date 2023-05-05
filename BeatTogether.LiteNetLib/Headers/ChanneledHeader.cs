@@ -1,5 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers.Abstractions;
+using BeatTogether.LiteNetLib.Util;
 using Krypton.Buffers;
 
 namespace BeatTogether.LiteNetLib.Headers
@@ -29,6 +30,19 @@ namespace BeatTogether.LiteNetLib.Headers
         }
 
         public override void WriteTo(ref SpanBufferWriter bufferWriter)
+        {
+            base.WriteTo(ref bufferWriter);
+            bufferWriter.WriteUInt16(Sequence);
+            bufferWriter.WriteUInt8(ChannelId);
+
+            if (IsFragmented)
+            {
+                bufferWriter.WriteUInt16(FragmentId);
+                bufferWriter.WriteUInt16(FragmentPart);
+                bufferWriter.WriteUInt16(FragmentsTotal);
+            }
+        }
+        public override void WriteTo(ref MemoryBuffer bufferWriter)
         {
             base.WriteTo(ref bufferWriter);
             bufferWriter.WriteUInt16(Sequence);

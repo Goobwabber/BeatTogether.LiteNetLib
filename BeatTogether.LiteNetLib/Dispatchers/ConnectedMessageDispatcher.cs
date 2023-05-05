@@ -3,6 +3,7 @@ using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Models;
+using BeatTogether.LiteNetLib.Util;
 using Krypton.Buffers;
 using System;
 using System.Collections.Concurrent;
@@ -33,7 +34,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
 
             _server.ClientDisconnectEvent += HandleDisconnect;
         }
-
+        /*
         public Task Send(EndPoint endPoint, ReadOnlySpan<byte> message, DeliveryMethod method)
         {
             if (method == DeliveryMethod.Unreliable)
@@ -68,7 +69,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 var memSlice = new Memory<byte>(bufferReader.ReadBytes(sliceSize).ToArray());
                 fragmentTasks[i] = SendAndRetry(endPoint, memSlice, channelId, true, fragmentId, i, (ushort)fragmentCount);
             }
-            return Task.WhenAll(fragmentTasks);
+            return Task.WhenAll(fragmentTasks); //TODO look at changes between this version and the memory optimisations version, then merge them but keep the server speed, because as is this is faster than normal LNL is at doing things
         }
 
         private async Task SendAndRetry(EndPoint endPoint, Memory<byte> message, byte channelId, bool fragmented = false, ushort fragmentId = 0, ushort fragmentPart = 0, ushort fragmentsTotal = 0)
@@ -97,7 +98,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
 
                 if (ackTask.IsCompleted)
                     return;
-                _server.SendAsync(endPoint, fullMessage);
+                await _server.SendAsync(endPoint, fullMessage);
                 await Task.WhenAny(
                     ackTask,
                     Task.Delay(_configuration.ReliableRetryDelay)
@@ -124,8 +125,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 Sequence = (ushort)sequence
             }.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message);
-            _server.SendAsync(endPoint, bufferWriter.Data.ToArray());
-            return Task.CompletedTask;
+            return _server.SendAsync(endPoint, bufferWriter.Data.ToArray()); ;
         }
 
         UnreliableHeader unreliableHeader = new UnreliableHeader();
@@ -136,9 +136,128 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
             unreliableHeader.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message);
-            _server.SendAsync(endPoint, bufferWriter.Data.ToArray());
-            return Task.CompletedTask;
+            return _server.SendAsync(endPoint, bufferWriter.Data.ToArray()); ;
         }
+        */
+
+        public Task Send(EndPoint endPoint, Span<byte> message, DeliveryMethod method)
+        {
+            if (method == DeliveryMethod.Unreliable)
+                return SendUnreliable(endPoint, message);
+            var channelId = (byte)method;
+            if (method == DeliveryMethod.Sequenced)
+            {
+                var window = _channelWindows.GetOrAdd(endPoint, _ => new())
+                    .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
+                _ = window.Enqueue(out int queueIndex);
+                return SendChanneled(endPoint, message, channelId, queueIndex);
+            }
+            if (message.Length + ChanneledHeaderSize <= _configuration.MaxPacketSize)
+            {
+                var memoryWriter = new MemoryBuffer(new byte[message.Length + 10], false);
+                memoryWriter.SetOffset(ChanneledHeaderSize);
+                memoryWriter.WriteBytes(message);
+                return SendAndRetry(endPoint, memoryWriter, channelId);
+            }
+
+            int maxMessageSize = _configuration.MaxPacketSize - FragmentedHeaderSize;
+            int fragmentCount = message.Length / maxMessageSize + ((message.Length % maxMessageSize == 0) ? 0 : 1);
+            if (fragmentCount > ushort.MaxValue) // ushort is used to identify each fragment
+                throw new Exception(); // TODO
+
+            ushort fragmentId;
+            lock (_fragmentLock)
+            {
+                fragmentId = _fragmentIds.GetOrAdd(endPoint, 0);
+                _fragmentIds[endPoint]++;
+            }
+            Task[] fragmentTasks = new Task[fragmentCount];
+            int fragmentOffset = 0;
+            int Remaining = 0;
+            for (ushort i = 0; i < fragmentCount; i++)
+            {
+                var memoryWriter = new MemoryBuffer(new byte[message.Length + ChanneledHeaderSize], false);
+                memoryWriter.SetOffset(10);
+                Remaining = message.Length - fragmentOffset;
+                var sliceSize = Remaining > maxMessageSize ? maxMessageSize : Remaining;
+                memoryWriter.WriteBytes(message.Slice(fragmentOffset, sliceSize));
+                fragmentOffset += sliceSize;
+                fragmentTasks[i] = SendAndRetry(endPoint, memoryWriter, channelId, true, fragmentId, i, (ushort)fragmentCount);
+            }
+            return Task.WhenAll(fragmentTasks);
+        }
+
+        private async Task SendAndRetry(EndPoint endPoint, MemoryBuffer message, byte channelId, bool fragmented = false, ushort fragmentId = 0, ushort fragmentPart = 0, ushort fragmentsTotal = 0)
+        {
+            var window = _channelWindows.GetOrAdd(endPoint, _ => new())
+                .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
+            await window.Enqueue(out int queueIndex);
+
+            int OldOffset = message.Offset;
+            message.SetOffset(0);
+            new ChanneledHeader
+            {
+                IsFragmented = fragmented,
+                ChannelId = channelId,
+                Sequence = (ushort)queueIndex,
+                FragmentId = fragmentId,
+                FragmentPart = fragmentPart,
+                FragmentsTotal = fragmentsTotal
+            }.WriteTo(ref message);
+            message.SetOffset(OldOffset);
+            var ackTask = window.WaitForDequeue(queueIndex);
+            var retryCount = 0;
+            long TimeOfSend = DateTime.UtcNow.Ticks;
+            while (DateTime.UtcNow.Ticks - TimeOfSend < _configuration.TimeoutSeconds * TimeSpan.TicksPerSecond)
+            {
+                retryCount++;
+                if (!_channelWindows.TryGetValue(endPoint, out var channels) || !channels.TryGetValue(channelId, out _))
+                    break; // Channel destroyed, stop sending
+                if (ackTask.IsCompleted)
+                    break;
+                await _server.SendAsync(endPoint, message.Data);
+                await Task.WhenAny(
+                    ackTask,
+                    Task.Delay(retryCount < _configuration.ReliableRetries ? _configuration.ReliableRetryDelay : _configuration.ReliableRetryDelayAfterRetrys)
+                );
+            }
+        }
+
+        private Task SendChanneled(EndPoint endPoint, ReadOnlySpan<byte> message, byte channelId, int sequence)
+        {
+            if (message.Length > _configuration.MaxPacketSize - ChanneledHeaderSize)
+                throw new Exception();
+            var bufferWriter = new SpanBufferWriter(stackalloc byte[message.Length + ChanneledHeaderSize], false); //Should be memoryBuffer
+            new ChanneledHeader
+            {
+                ChannelId = channelId,
+                Sequence = (ushort)sequence
+            }.WriteTo(ref bufferWriter);
+            bufferWriter.WriteBytes(message);
+            return InternalSendChanneled(endPoint, bufferWriter.Data.ToArray());
+        }
+        private async Task InternalSendChanneled(EndPoint endPoint, Memory<byte> buffer)
+        {
+            await _server.SendAsync(endPoint, buffer);
+        }
+
+        private readonly UnreliableHeader _unreliableHeader = new UnreliableHeader();
+        private Task SendUnreliable(EndPoint endPoint, ReadOnlySpan<byte> message)
+        {
+            if (message.Length > _configuration.MaxPacketSize - 1)
+                throw new Exception();
+            var bufferWriter = new SpanBufferWriter(stackalloc byte[message.Length + 1], false); //Should be memoryBuffer
+            _unreliableHeader.WriteTo(ref bufferWriter);
+            bufferWriter.WriteBytes(message);
+            return InternalSendUnreliable(endPoint, bufferWriter.Data.ToArray());
+        }
+        private async Task InternalSendUnreliable(EndPoint endPoint, Memory<byte> buffer)
+        {
+            await _server.SendAsync(endPoint, buffer);
+        }
+
+
+
 
         /// <summary>
         /// Acknowledges a message so we know to stop sending it
