@@ -160,19 +160,6 @@ namespace BeatTogether.LiteNetLib
         }
 
         /// <summary>
-        /// Sends a raw serializable packe to an endpoint
-        /// </summary>
-        /// <param name="endPoint">Endpoint to send packet to</param>
-        /// <param name="packet">The raw data to send (must include LiteNetLib headers)</param>
-        /// <returns>Task that is completed when the packet has been sent</returns>
-        public virtual void Send(EndPoint endPoint, INetSerializable packet)
-        {
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[412]);
-            packet.WriteTo(ref bufferWriter);
-            _ = SendAsync(endPoint, bufferWriter.Data.ToArray().AsMemory());
-        }
-
-        /// <summary>
         /// Disconnects a connected endpoint
         /// </summary>
         /// <param name="endPoint">Endpoint to disconnect</param>
@@ -237,7 +224,7 @@ namespace BeatTogether.LiteNetLib
                 PingSendTime = DateTime.UtcNow.Millisecond;
                 _PongSequence[Endpoint] = (Sequence, PingSendTime);
 
-                Send(endPoint, new PingHeader
+                SendAsync(endPoint, new PingHeader
                 {
                     Sequence = (ushort)Sequence
                 });
