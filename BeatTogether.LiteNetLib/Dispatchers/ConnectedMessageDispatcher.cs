@@ -227,7 +227,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
         {
             if (message.Length > _configuration.MaxPacketSize - ChanneledHeaderSize)
                 throw new Exception();
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[message.Length + ChanneledHeaderSize], false); //Should be memoryBuffer
+            var bufferWriter = new SpanBuffer(stackalloc byte[message.Length + ChanneledHeaderSize], false); //Should be memoryBuffer
             new ChanneledHeader
             {
                 ChannelId = channelId,
@@ -246,7 +246,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
         {
             if (message.Length > _configuration.MaxPacketSize - 1)
                 throw new Exception();
-            var bufferWriter = new SpanBufferWriter(stackalloc byte[message.Length + 1], false); //Should be memoryBuffer
+            var bufferWriter = new SpanBuffer(stackalloc byte[message.Length + 1], false); //Should be memoryBuffer
             _unreliableHeader.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message);
             return InternalSendUnreliable(endPoint, bufferWriter.Data.ToArray());

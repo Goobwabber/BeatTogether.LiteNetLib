@@ -15,7 +15,7 @@ namespace BeatTogether.LiteNetLib.Headers
         public ushort FragmentPart { get; set; }
         public ushort FragmentsTotal { get; set; }
 
-        public override void ReadFrom(ref SpanBufferReader bufferReader)
+        public override void ReadFrom(ref SpanBuffer bufferReader)
         {
             base.ReadFrom(ref bufferReader);
             Sequence = bufferReader.ReadUInt16();
@@ -29,7 +29,7 @@ namespace BeatTogether.LiteNetLib.Headers
             }
         }
 
-        public override void WriteTo(ref SpanBufferWriter bufferWriter)
+        public override void WriteTo(ref SpanBuffer bufferWriter)
         {
             base.WriteTo(ref bufferWriter);
             bufferWriter.WriteUInt16(Sequence);

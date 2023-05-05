@@ -1,5 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers.Abstractions;
+using BeatTogether.LiteNetLib.Util;
 using Krypton.Buffers;
 
 namespace BeatTogether.LiteNetLib.Headers
@@ -11,7 +12,7 @@ namespace BeatTogether.LiteNetLib.Headers
         public byte RequestConnectionNumber { get; set; }
         public bool IsReusedPeer { get; set; }
 
-        public override void ReadFrom(ref SpanBufferReader bufferReader)
+        public override void ReadFrom(ref SpanBuffer bufferReader)
         {
             base.ReadFrom(ref bufferReader);
             ConnectTime = bufferReader.ReadInt64();
@@ -19,7 +20,7 @@ namespace BeatTogether.LiteNetLib.Headers
             IsReusedPeer = bufferReader.ReadByte() == 1;
         }
 
-        public override void WriteTo(ref SpanBufferWriter bufferWriter)
+        public override void WriteTo(ref SpanBuffer bufferWriter)
         {
             base.WriteTo(ref bufferWriter);
             bufferWriter.WriteInt64(ConnectTime);

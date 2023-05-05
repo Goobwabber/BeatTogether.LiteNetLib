@@ -11,7 +11,7 @@ namespace BeatTogether.LiteNetLib.Headers.Abstractions
         public byte ConnectionNumber { get; set; }
         public bool IsFragmented { get; set; }
 
-        public virtual void ReadFrom(ref SpanBufferReader bufferReader)
+        public virtual void ReadFrom(ref SpanBuffer bufferReader)
         {
             byte b = bufferReader.ReadByte();
             Property = (PacketProperty)(b & 0x1f);          // 0x1f 00011111
@@ -19,7 +19,7 @@ namespace BeatTogether.LiteNetLib.Headers.Abstractions
             IsFragmented = (b & 0x80) != 0;                 // 0x80 10000000
         }
 
-        public virtual void WriteTo(ref SpanBufferWriter bufferWriter)
+        public virtual void WriteTo(ref SpanBuffer bufferWriter)
         {
             byte b = (byte)Property;
             b |= (byte)(ConnectionNumber << 5);
