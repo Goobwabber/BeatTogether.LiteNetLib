@@ -1,14 +1,12 @@
-using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Models;
 using BeatTogether.LiteNetLib.Util;
-using Krypton.Buffers;
 using System;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net;
-using System.Threading;
 using System.Threading.Tasks;
 
 namespace BeatTogether.LiteNetLib.Dispatchers
@@ -18,10 +16,10 @@ namespace BeatTogether.LiteNetLib.Dispatchers
         public const int ChanneledHeaderSize = 4;
         public const int FragmentedHeaderSize = ChanneledHeaderSize + 6;
 
-        private object _fragmentLock = new();
-
-        private readonly ConcurrentDictionary<EndPoint, ushort> _fragmentIds = new();
-        private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, QueueWindow>> _channelWindows = new();
+        private readonly Dictionary<EndPoint, ushort> _fragmentIds = new();
+        private readonly object _fragmentLock = new();
+        private readonly Dictionary<EndPoint, (object, Dictionary<byte, QueueWindow>)> _channelWindows = new();
+        private readonly object _channelWindowLock = new();
         private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetServer _server;
 
@@ -41,9 +39,10 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             var channelId = (byte)method;
             if (method == DeliveryMethod.Sequenced)
             {
-                var window = _channelWindows.GetOrAdd(endPoint, _ => new())
-                    .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
-                _ = window.Enqueue(out int queueIndex);
+                GetWindow(endPoint, channelId, out var window);
+                //_ = window.Enqueue(out int queueIndex);
+                window.Enqueue(out int queueIndex);
+
                 return SendChanneled(endPoint, message, channelId, queueIndex);
             }
             if (message.Length + ChanneledHeaderSize + 256 <= _configuration.MaxPacketSize)
@@ -62,12 +61,14 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             ushort fragmentId;
             lock (_fragmentLock)
             {
-                fragmentId = _fragmentIds.GetOrAdd(endPoint, 0);
+                if(!_fragmentIds.TryGetValue(endPoint, out fragmentId))
+                    _fragmentIds.Add(endPoint, fragmentId = 0);
                 _fragmentIds[endPoint]++;
+                Debug.WriteLine("Fragment ID: " + fragmentId);
             }
             Task[] fragmentTasks = new Task[fragmentCount];
             int fragmentOffset = 0;
-            int Remaining = 0;
+            int Remaining;
             for (ushort i = 0; i < fragmentCount; i++)
             {
                 var memoryWriter = new MemoryBuffer(new byte[message.Length + ChanneledHeaderSize], false);
@@ -83,9 +84,12 @@ namespace BeatTogether.LiteNetLib.Dispatchers
 
         private async Task SendAndRetry(EndPoint endPoint, MemoryBuffer message, byte channelId, bool fragmented = false, ushort fragmentId = 0, ushort fragmentPart = 0, ushort fragmentsTotal = 0)
         {
-            var window = _channelWindows.GetOrAdd(endPoint, _ => new())
-                .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
-            await window.Enqueue(out int queueIndex);
+            //var window = _channelWindows.GetOrAdd(endPoint, _ => new())
+            //    .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
+            //await window.Enqueue(out int queueIndex);
+            GetWindow(endPoint, channelId, out var window);
+            //await window.Enqueue(out int queueIndex);
+            window.Enqueue(out int queueIndex);
 
             int OldOffset = message.Offset;
             message.SetOffset(0);
@@ -105,7 +109,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             while (DateTime.UtcNow.Ticks - TimeOfSend < _configuration.TimeoutSeconds * TimeSpan.TicksPerSecond)
             {
                 retryCount++;
-                if (!_channelWindows.TryGetValue(endPoint, out var channels) || !channels.TryGetValue(channelId, out _))
+                if (!_channelWindows.TryGetValue(endPoint, out var channels) || !channels.Item2.TryGetValue(channelId, out _))
                     break; // Channel destroyed, stop sending
                 if (ackTask.IsCompleted)
                     break;
@@ -116,6 +120,22 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 );
             }
         }
+
+        private void GetWindow(EndPoint endPoint, byte channelId, out QueueWindow window)
+        {
+            (object, Dictionary<byte, QueueWindow>) windows;
+            lock (_channelWindowLock)
+            {
+                if (!_channelWindows.TryGetValue(endPoint, out windows))
+                    _channelWindows.Add(endPoint, windows = (new(), new()));
+            }
+            lock (windows.Item1)
+            {
+                if (!windows.Item2.TryGetValue(channelId, out window!))
+                    windows.Item2.Add(channelId, window = new(_configuration.WindowSize, _configuration.MaxSequence));
+            }
+        }
+
 
         private Task SendChanneled(EndPoint endPoint, ReadOnlySpan<byte> message, byte channelId, int sequence)
         {
@@ -161,13 +181,29 @@ namespace BeatTogether.LiteNetLib.Dispatchers
         /// <param name="sequenceId">Sequence of the message</param>
         /// <returns>Whether the message was successfully acknowledged</returns>
         public bool Acknowledge(EndPoint endPoint, byte channelId, int sequenceId)
-            => _channelWindows.TryGetValue(endPoint, out var channels)
-            && channels.TryGetValue(channelId, out var window)
-            && window.Dequeue(sequenceId);
+        {
+            (object, Dictionary<byte, QueueWindow>) channels;
+            lock (_channelWindowLock)
+            {
+                if (!_channelWindows.TryGetValue(endPoint, out channels))
+                    return false;
+            }
+            QueueWindow? window;
+            lock (channels.Item1)
+            {
+                if(!channels.Item2.TryGetValue(channelId, out window))
+                return false;
+            }
+            return window.Dequeue(sequenceId);
+        }
 
         public void HandleDisconnect(EndPoint endPoint, DisconnectReason reason)
-            => _channelWindows.TryRemove(endPoint, out _);
-
+        {
+            lock (_channelWindowLock)
+            {
+                _channelWindows.Remove(endPoint, out _);
+            }
+        }
         public void Dispose()
             => _server.ClientDisconnectEvent -= HandleDisconnect;
     }

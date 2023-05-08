@@ -1,16 +1,13 @@
-﻿using System.Collections;
-using System.Collections.Concurrent;
-using System.Collections.Generic;
-using System.Linq;
+﻿using System.Collections.Generic;
 
 namespace BeatTogether.LiteNetLib.Models
 {
     public class AckWindow
     {
-        private readonly ConcurrentHashSet<int> _acknowledgements = new();
+        private readonly HashSet<int> _acknowledgements = new();
+        private readonly object _AccessLock = new();
         private readonly int _queueSize;
         private readonly int _windowSize;
-        private object _windowPositionLock = new();
         private int _windowPosition = 0;
 
         /// <summary>
@@ -31,41 +28,42 @@ namespace BeatTogether.LiteNetLib.Models
         /// <returns>True if index was successfully added</returns>
         public bool Add(int index)
         {
-            if (!_acknowledgements.TryAdd(index))
-                return false;
-            AdvanceTo(index);
+            lock (_AccessLock)
+            {
+                if (!_acknowledgements.Add(index))
+                    return false;
+
+                //Advances to the next position
+                var posRelative = (index - _windowPosition + _queueSize * 1.5) % _queueSize - _queueSize / 2;
+                if (posRelative < _windowSize)
+                    return true; // Do not need to advance
+                var targetPosition = (index - _windowSize + 1 + _queueSize) % _queueSize;
+                while (_windowPosition != targetPosition)
+                {
+                    _acknowledgements.Remove(_windowPosition);
+                    _windowPosition = (_windowPosition + 1) % _queueSize;
+                }
+            }
             return true;
         }
 
         public List<int> GetWindow(out int windowPosition)
         {
-            windowPosition = _windowPosition;
-            return _acknowledgements.Values
-                .Where(x => 
-                {
-                    var rel = (x - _windowPosition + _queueSize * 1.5) % _queueSize - _queueSize / 2;
-                    return rel < _windowSize && rel >= 0;
-                })
-                .Select(x => (x % _windowSize))
-                .ToList();
-            // x % _windowSize should be (x - _windowPosition) % _queueSize but litenetlib bad
-            // refer to AckPacketHandler comment for more information
-        }
-
-        private void AdvanceTo(int position)
-        {
-            lock(_windowPositionLock)
+            List<int> result = new();
+            lock (_AccessLock)
             {
-                var posRelative = (position - _windowPosition + _queueSize * 1.5) % _queueSize - _queueSize / 2;
-                if (posRelative < _windowSize)
-                    return; // Do not need to advance
-                var targetPosition = (position - _windowSize + 1 + _queueSize) % _queueSize;
-                while (_windowPosition != targetPosition)
+                windowPosition = _windowPosition;
+                foreach (var item in _acknowledgements)
                 {
-                    _acknowledgements.TryRemove(_windowPosition);
-                    _windowPosition = (_windowPosition + 1) % _queueSize;
+                    var rel = (item - windowPosition + _queueSize * 1.5) % _queueSize - _queueSize / 2;
+                    if (rel < _windowSize && rel >= 0)
+                        result.Add(item % _windowSize);
                 }
             }
+            return result;
+
+            // x % _windowSize should be (x - _windowPosition) % _queueSize but litenetlib bad
+            // refer to AckPacketHandler comment for more information
         }
     }
 }
