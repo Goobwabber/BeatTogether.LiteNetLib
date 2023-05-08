@@ -3,17 +3,18 @@ using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Models;
 using BeatTogether.LiteNetLib.Util;
-using Krypton.Buffers;
 using System;
-using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Net;
 
 namespace BeatTogether.LiteNetLib.Sources
 {
     public abstract class ConnectedMessageSource : IDisposable
     {
-        private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<ushort, FragmentBuilder>> _fragmentBuilders = new();
-        private readonly ConcurrentDictionary<EndPoint, ConcurrentDictionary<byte, AckWindow>> _channelWindows = new();
+        private readonly Dictionary<EndPoint, (object, Dictionary<ushort, FragmentBuilder>)> _fragmentBuilders = new();
+        private readonly object _fragmentLock = new();
+        private readonly Dictionary<EndPoint, (object, Dictionary<byte, AckWindow>)> _channelWindows = new();
+        private readonly object _channelWindowLock = new();
         private readonly LiteNetConfiguration _configuration;
         private readonly LiteNetServer _server;
 
@@ -31,15 +32,64 @@ namespace BeatTogether.LiteNetLib.Sources
             => _server.ClientDisconnectEvent -= HandleDisconnect;
 
         public void HandleDisconnect(EndPoint endPoint, DisconnectReason reason)
-            => _channelWindows.TryRemove(endPoint, out _);
+        {
+            lock(_channelWindowLock){
+                _channelWindows.Remove(endPoint, out _);
+            }
+            lock(_fragmentLock){
+                _fragmentBuilders.Remove(endPoint, out _);
+            }
+        }
 
         public virtual void Signal(EndPoint remoteEndPoint, UnreliableHeader header, ref SpanBuffer reader)
             => OnReceive(remoteEndPoint, ref reader, DeliveryMethod.Unreliable);
 
+
+        private void GetWindow(EndPoint endPoint, byte channelId, out AckWindow window)
+        {
+            (object, Dictionary<byte, AckWindow>) windows;
+            lock (_channelWindowLock)
+            {
+                if (!_channelWindows.TryGetValue(endPoint, out windows))
+                    _channelWindows.Add(endPoint, windows = (new(), new()));
+            }
+            lock (windows.Item1)
+            {
+                if (!windows.Item2.TryGetValue(channelId, out window!))
+                    windows.Item2.Add(channelId, window = new(_configuration.WindowSize, _configuration.MaxSequence));
+            }
+        }
+        private void GetFragmentBuilder(EndPoint endPoint, ushort FragmentId, ushort TotalFragments, out FragmentBuilder Builder)
+        {
+            (object, Dictionary<ushort, FragmentBuilder>) Builders;
+            lock (_fragmentLock)
+            {
+                if (!_fragmentBuilders.TryGetValue(endPoint, out Builders))
+                    _fragmentBuilders.Add(endPoint, Builders = (new(), new()));
+            }
+            lock (Builders.Item1)
+            {
+                if (!Builders.Item2.TryGetValue(FragmentId, out Builder!))
+                    Builders.Item2.Add(FragmentId, Builder = new(TotalFragments));
+            }
+        }
+        private void DiscardFragmentBuilder(EndPoint endPoint, ushort FragmentId)
+        {
+            (object, Dictionary<ushort, FragmentBuilder>) Builders;
+            lock (_fragmentLock)
+            {
+                if (!_fragmentBuilders.TryGetValue(endPoint, out Builders))
+                    _fragmentBuilders.Add(endPoint, Builders = (new(), new()));
+            }
+            lock (Builders.Item1)
+            {
+                Builders.Item2.Remove(FragmentId, out _);
+            }
+        }
+
         public virtual void Signal(EndPoint remoteEndPoint, ChanneledHeader header, ref SpanBuffer reader)
         {
-            var window = _channelWindows.GetOrAdd(remoteEndPoint, _ => new())
-                .GetOrAdd(header.ChannelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
+            GetWindow(remoteEndPoint, header.ChannelId, out var window);
             var alreadyReceived = !window.Add(header.Sequence);
             var windowArray = window.GetWindow(out int windowPosition);
 
@@ -53,14 +103,14 @@ namespace BeatTogether.LiteNetLib.Sources
 
             if (header.IsFragmented)
             {
-                var builder = _fragmentBuilders.GetOrAdd(remoteEndPoint, _ => new())
-                    .GetOrAdd(header.FragmentId, _ => new(header.FragmentsTotal));
+                GetFragmentBuilder(remoteEndPoint, header.FragmentId, header.FragmentsTotal, out var builder);
 
                 if (builder.AddFragment(header.FragmentPart, reader.RemainingData))
                 {
                     var fragmentReader = new SpanBuffer(stackalloc byte[header.FragmentsTotal * 1024]); //Almost max size of packet * total fragments
                     builder.WriteTo(ref fragmentReader);
                     SpanBuffer CombinedFragments = new(fragmentReader.Data);
+                    DiscardFragmentBuilder(remoteEndPoint, header.FragmentId);
                     OnReceive(remoteEndPoint, ref CombinedFragments, (DeliveryMethod)header.ChannelId);
                 }
             }

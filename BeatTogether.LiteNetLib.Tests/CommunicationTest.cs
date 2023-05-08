@@ -145,7 +145,8 @@ namespace BeatTogether.LiteNetLib.Tests
         {
             bool msgDelivered = false;
             bool msgReceived = false;
-
+            const int AmountToSend = 1;
+            int AmountRecieved = 0;
             const int testSize = 250;
             var test = new Dictionary<int, byte>
             {
@@ -156,7 +157,10 @@ namespace BeatTogether.LiteNetLib.Tests
 
             _server.ClientConnectEvent += endPoint =>
             {
-                _messageDispatcher.Send(endPoint, new Span<byte>(MakeTest(testSize, test)), Enums.DeliveryMethod.ReliableOrdered);
+                for (int i = 0; i < AmountToSend; i++)
+                {
+                    _messageDispatcher.Send(endPoint, new Span<byte>(MakeTest(testSize, test)), Enums.DeliveryMethod.ReliableOrdered);
+                }
                 msgDelivered = true;
             };
             _clientNetListener.NetworkReceiveEvent += (endPoint, data, method) =>
@@ -165,11 +169,12 @@ namespace BeatTogether.LiteNetLib.Tests
                 Assert.AreEqual(testSize, data.UserDataSize);
                 AssertTest(test, data.RawData, data.UserDataOffset);
                 msgReceived = true;
+                AmountRecieved++;
             };
 
             _clientNetManager.Connect("127.0.0.1", TestServer._Port, "");
             WaitUntilConnected();
-            WaitWhileConnectedUntil(() => msgDelivered && msgReceived);
+            WaitWhileConnectedUntil(() => msgDelivered && msgReceived && AmountRecieved >= AmountToSend);
             Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
         }
 
@@ -178,6 +183,9 @@ namespace BeatTogether.LiteNetLib.Tests
         {
             bool msgDelivered = false;
             bool msgReceived = false;
+
+            const int AmountToSend = 1;
+            int AmountRecieved = 0;
 
             const int testSize = 250;
             var test = new Dictionary<int, byte>
@@ -194,8 +202,11 @@ namespace BeatTogether.LiteNetLib.Tests
             };
             _clientNetListener.PeerConnectedEvent += peer =>
             {
-                int testData = 5;
-                peer.SendWithDeliveryEvent(MakeTest(testSize, test), 0, DeliveryMethod.ReliableUnordered, testData);
+                for (int i = 0; i < AmountToSend; i++)
+                {
+                    int testData = 5;
+                    peer.SendWithDeliveryEvent(MakeTest(testSize, test), 0, DeliveryMethod.ReliableUnordered, testData);
+                }
             };
             _messageSource.ReceiveConnectedEvent += (endPoint, data, method) =>
             {
@@ -203,11 +214,12 @@ namespace BeatTogether.LiteNetLib.Tests
                 Assert.AreEqual(testSize, reader.RemainingSize);
                 AssertTest(test, data, 0);
                 msgReceived = true;
+                AmountRecieved++;
             };
 
             _clientNetManager.Connect("127.0.0.1", TestServer._Port, "");
             WaitUntilConnected();
-            WaitWhileConnectedUntil(() => msgDelivered && msgReceived);
+            WaitWhileConnectedUntil(() => msgDelivered && msgReceived && AmountRecieved >= AmountToSend);
             Assert.AreEqual(1, _clientNetManager.ConnectedPeersCount);
         }
 
