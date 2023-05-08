@@ -40,7 +40,6 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             if (method == DeliveryMethod.Sequenced)
             {
                 GetWindow(endPoint, channelId, out var window);
-                //_ = window.Enqueue(out int queueIndex);
                 window.Enqueue(out int queueIndex);
 
                 return SendChanneled(endPoint, message, channelId, queueIndex);
@@ -84,11 +83,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
 
         private async Task SendAndRetry(EndPoint endPoint, MemoryBuffer message, byte channelId, bool fragmented = false, ushort fragmentId = 0, ushort fragmentPart = 0, ushort fragmentsTotal = 0)
         {
-            //var window = _channelWindows.GetOrAdd(endPoint, _ => new())
-            //    .GetOrAdd(channelId, _ => new(_configuration.WindowSize, _configuration.MaxSequence));
-            //await window.Enqueue(out int queueIndex);
             GetWindow(endPoint, channelId, out var window);
-            //await window.Enqueue(out int queueIndex);
             window.Enqueue(out int queueIndex);
 
             int OldOffset = message.Offset;

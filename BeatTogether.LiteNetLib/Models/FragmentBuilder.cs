@@ -1,9 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Util;
-using Krypton.Buffers;
 using System;
-using System.Buffers;
-using System.Collections.Concurrent;
-using System.Threading;
+using System.Collections.Generic;
 
 namespace BeatTogether.LiteNetLib.Models
 {
@@ -13,7 +10,7 @@ namespace BeatTogether.LiteNetLib.Models
         private int _fragmentsReceived;
 
         private readonly int _totalFragments;
-        private readonly ConcurrentDictionary<int, ReadOnlyMemory<byte>> _fragments = new();
+        private readonly Dictionary<int, ReadOnlyMemory<byte>> _fragments = new();
 
         public FragmentBuilder(int totalFragments)
         {
@@ -24,6 +21,8 @@ namespace BeatTogether.LiteNetLib.Models
         {
             lock (_fragmentsLock)
             {
+                if(_fragmentsReceived >= _totalFragments)
+                    return false;
                 if (_fragments.TryAdd(fragmentId, new ReadOnlyMemory<byte>(buffer.ToArray())))
                         _fragmentsReceived++;
                 return _fragmentsReceived >= _totalFragments;

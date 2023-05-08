@@ -38,7 +38,6 @@ namespace BeatTogether.LiteNetLib.Models
             {
                 TaskCompletionSource task = new();
                 task.SetResult();
-                //_taskQueue.Add(i, task);
                 lock (_taskQueueLock)
                 {
                     _queue.Add(i);
@@ -50,7 +49,6 @@ namespace BeatTogether.LiteNetLib.Models
         /// Enqueues a task at the next available index.
         /// </summary>
         /// <param name="index">Index task was queued at</param>
-        /// <returns>Queued task</returns>
         public void Enqueue(out int index)
         {
             lock (_queuePositionLock)
@@ -66,20 +64,6 @@ namespace BeatTogether.LiteNetLib.Models
         /// Enqueues a task at a specified index.
         /// </summary>
         /// <param name="index">Index to queue task at</param>
-        /// <returns>Queued task</returns>
-        /*
-        public Task EnqueueAtIndex(int index)
-        {
-            lock (_taskQueueLock)
-            {
-                if (!_taskQueue.TryGetValue(index, out var task))
-                {
-                    _taskQueue.Add(index, task = new());
-                    task.SetResult();
-                }
-                return task.Task;
-            }
-        }*/
         public void EnqueueAtIndex(int index)
         {
             lock (_taskQueueLock)
@@ -120,7 +104,6 @@ namespace BeatTogether.LiteNetLib.Models
             bool dequeued;
             lock (_taskQueueLock)
             {
-                //dequeued = _taskQueue.Remove(index, out var task);
                 dequeued = _queue.Remove(index);
             }
             lock (_taskDeQueueLock)
@@ -141,7 +124,6 @@ namespace BeatTogether.LiteNetLib.Models
         {
             lock (_taskQueueLock)
             {
-                //return _taskQueue.ContainsKey(index);
                 return _queue.Contains(index);
             }
         }
@@ -162,13 +144,6 @@ namespace BeatTogether.LiteNetLib.Models
                 lock (_taskQueueLock)
                 {
                     _queue.Add(newestIndex);
-                    /*
-                    if (!_taskQueue.TryGetValue(newestIndex, out var task))
-                    {
-                        _taskQueue.Add(newestIndex, task = new());
-                    }
-                    task.SetResult();
-                    */
                 }
                 // Advance window again if current index has been handled
                 if (!IsIndexQueued(_windowPosition))

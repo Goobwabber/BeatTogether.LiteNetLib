@@ -73,6 +73,19 @@ namespace BeatTogether.LiteNetLib.Sources
                     Builders.Item2.Add(FragmentId, Builder = new(TotalFragments));
             }
         }
+        private void DiscardFragmentBuilder(EndPoint endPoint, ushort FragmentId)
+        {
+            (object, Dictionary<ushort, FragmentBuilder>) Builders;
+            lock (_fragmentLock)
+            {
+                if (!_fragmentBuilders.TryGetValue(endPoint, out Builders))
+                    _fragmentBuilders.Add(endPoint, Builders = (new(), new()));
+            }
+            lock (Builders.Item1)
+            {
+                Builders.Item2.Remove(FragmentId, out _);
+            }
+        }
 
         public virtual void Signal(EndPoint remoteEndPoint, ChanneledHeader header, ref SpanBuffer reader)
         {
@@ -97,6 +110,7 @@ namespace BeatTogether.LiteNetLib.Sources
                     var fragmentReader = new SpanBuffer(stackalloc byte[header.FragmentsTotal * 1024]); //Almost max size of packet * total fragments
                     builder.WriteTo(ref fragmentReader);
                     SpanBuffer CombinedFragments = new(fragmentReader.Data);
+                    DiscardFragmentBuilder(remoteEndPoint, header.FragmentId);
                     OnReceive(remoteEndPoint, ref CombinedFragments, (DeliveryMethod)header.ChannelId);
                 }
             }
