@@ -1,7 +1,6 @@
 ﻿using BeatTogether.LiteNetLib.Configuration;
 using BeatTogether.LiteNetLib.Enums;
 using BeatTogether.LiteNetLib.Util;
-using Krypton.Buffers;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System;
@@ -26,7 +25,8 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
                   new IPEndPoint(IPAddress.Loopback, _Port),
                   configuration,
                   registry,
-                  serviceProvider)
+                  serviceProvider, 
+                  5)
         {
             _logger = logger;
         }

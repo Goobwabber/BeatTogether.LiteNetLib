@@ -145,7 +145,7 @@ namespace BeatTogether.LiteNetLib.Tests
         {
             bool msgDelivered = false;
             bool msgReceived = false;
-            const int AmountToSend = 1;
+            const int AmountToSend = 500;
             int AmountRecieved = 0;
             const int testSize = 250;
             var test = new Dictionary<int, byte>
@@ -184,7 +184,7 @@ namespace BeatTogether.LiteNetLib.Tests
             bool msgDelivered = false;
             bool msgReceived = false;
 
-            const int AmountToSend = 1;
+            const int AmountToSend = 500;
             int AmountRecieved = 0;
 
             const int testSize = 250;

@@ -41,7 +41,7 @@ namespace BeatTogether.LiteNetLib
             LiteNetPacketRegistry packetRegistry,
             IServiceProvider serviceProvider,
             IPacketLayer? packetLayer = null)
-            : base(endPoint, configuration.RecieveAsync, 10, 2048)
+            : base(endPoint, 1, 2048)
         {
             _configuration = configuration;
             _packetRegistry = packetRegistry;
@@ -56,10 +56,9 @@ namespace BeatTogether.LiteNetLib
             LiteNetConfiguration configuration,
             LiteNetPacketRegistry packetRegistry,
             IServiceProvider serviceProvider,
-            bool RecvAsync,
-            int AsyncCount,
+            int ConcurrentRecv,
             IPacketLayer? packetLayer = null)
-            : base(endPoint, RecvAsync, AsyncCount, 2048)
+            : base(endPoint, ConcurrentRecv, 2048)
         {
             _configuration = configuration;
             _packetRegistry = packetRegistry;
