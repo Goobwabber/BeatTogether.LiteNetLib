@@ -9,7 +9,6 @@
 
     <ItemGroup>
       <ProjectReference Include="..\BeatTogether.LiteNetLib\BeatTogether.LiteNetLib.csproj" />
-      <ProjectReference Include="..\dependencies\AsyncUdpServer\AsyncUdpServer\AsyncUdpServer.csproj" />
     </ItemGroup>
 
     <ItemGroup>

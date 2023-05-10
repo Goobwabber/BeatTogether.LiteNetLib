@@ -5,7 +5,6 @@ using BeatTogether.LiteNetLib.Models;
 using BeatTogether.LiteNetLib.Util;
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -55,7 +54,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             int maxMessageSize = _configuration.MaxPacketSize - FragmentedHeaderSize - 256;
             int fragmentCount = message.Length / maxMessageSize + ((message.Length % maxMessageSize == 0) ? 0 : 1);
             if (fragmentCount > ushort.MaxValue) // ushort is used to identify each fragment
-                throw new Exception(); // TODO
+                throw new Exception("Fragment is too big: " + fragmentCount); // TODO
 
             ushort fragmentId;
             lock (_fragmentLock)
@@ -63,7 +62,6 @@ namespace BeatTogether.LiteNetLib.Dispatchers
                 if(!_fragmentIds.TryGetValue(endPoint, out fragmentId))
                     _fragmentIds.Add(endPoint, fragmentId = 0);
                 _fragmentIds[endPoint]++;
-                Debug.WriteLine("Fragment ID: " + fragmentId);
             }
             Task[] fragmentTasks = new Task[fragmentCount];
             int fragmentOffset = 0;
@@ -150,7 +148,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
             await _server.SendAsync(endPoint, buffer);
         }
 
-        private readonly UnreliableHeader _unreliableHeader = new UnreliableHeader();
+        private readonly UnreliableHeader _unreliableHeader = new();
         private Task SendUnreliable(EndPoint endPoint, ReadOnlySpan<byte> message)
         {
             if (message.Length > _configuration.MaxPacketSize - 1)

@@ -1,6 +1,8 @@
 ﻿using System;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace AsyncUdp
@@ -9,13 +11,14 @@ namespace AsyncUdp
     {
         public string Address { get; private set; }
         public int Port => IPEndpoint.Port;
-        private readonly bool ReceiveAsync;
         public IPEndPoint IPEndpoint { get; private set; }
         public EndPoint Endpoint { get; private set; }
 
-        private byte[] SerialBuffer;
-        private readonly ReuseableBufferPool _RecvBufferPool;
+        private byte[] _RecvBuffer;
+        private int _MaxPacketRecvSize;
+        private int _ConcurrentRecv;
 
+        private CancellationTokenSource ServerStopped;
         public bool IsStarted { get; private set; }
         Socket _Socket;
         EndPoint _receiveEndpoint;
@@ -27,15 +30,14 @@ namespace AsyncUdp
         /// <remarks>
         /// If receiveAsync is set to true, then the server will start recieving the next packet while the current one is still being handled
         /// </remarks>
-        public AsyncUdpServer(IPEndPoint endpoint, bool receiveAsync, int RecvBufferPoolSize, int BufferSize)
+        public AsyncUdpServer(IPEndPoint endpoint, int concurrentRecv, int BufferSize)
         {
             Address = endpoint.Address.ToString();
             Endpoint = endpoint;
             IPEndpoint = endpoint;
-            ReceiveAsync = receiveAsync;
-            if (ReceiveAsync)
-                _RecvBufferPool = new ReuseableBufferPool(BufferSize, RecvBufferPoolSize);
-            SerialBuffer = GC.AllocateArray<byte>(BufferSize, pinned: true);
+            _ConcurrentRecv = concurrentRecv;
+            _MaxPacketRecvSize = BufferSize;
+            _RecvBuffer = GC.AllocateArray<byte>(BufferSize * concurrentRecv, pinned: true);
         }
 
         /// <summary>
@@ -56,6 +58,7 @@ namespace AsyncUdp
         /// <returns>'true' if the server was successfully started, 'false' if the server failed to start</returns>
         public virtual bool Start()
         {
+            ServerStopped = new();
             if (IsStarted)
                 return false;
             // Setup event args
@@ -84,7 +87,7 @@ namespace AsyncUdp
             // Update the started flag
             IsStarted = true;
 
-            _ = StartReceiveAsync();
+            StartReceiveAsync();
             // Call the server started handler
             OnStarted();
 
@@ -102,9 +105,9 @@ namespace AsyncUdp
 
             // Call the server stopping handler
             OnStopping();
-
             // Update the started flag
             IsStarted = false;
+            ServerStopped.Cancel();
             try
             {
                 // Close the server socket
@@ -118,73 +121,40 @@ namespace AsyncUdp
             }
             catch (ObjectDisposedException) { }
 
-
-
             // Call the server stopped handler
             OnStopped();
 
             return true;
         }
 
-
-
-        private async Task StartReceiveAsync()
+        private void StartReceiveAsync()
         {
             // Try to receive datagram
-            if (ReceiveAsync)
+            for (int i = 0; i < _ConcurrentRecv; i++) //TODO Allow LNL to increase/decrease the amount of concurrent recievers after server start
             {
-                RecieveAsync();
-                return;
+                int IndexStart = i;
+                Task.Run(() => Recieve(IndexStart));
             }
+        }
+
+        private async void Recieve(int BufferId)
+        {
+            EndPoint RecvEndpoint = _receiveEndpoint;
+            Memory<byte> RecvBuffer = _RecvBuffer.AsMemory().Slice(BufferId * _MaxPacketRecvSize, _MaxPacketRecvSize);
+            SocketReceiveFromResult recvResult;
             while (IsStarted)
             {
-                await RecieveSerial();
+                try
+                {
+                    recvResult = await _Socket.ReceiveFromAsync(RecvBuffer, SocketFlags.None, RecvEndpoint, ServerStopped.Token);
+                }
+                catch (SocketException) { return; }
+                catch (ObjectDisposedException) { return; }
+                catch (Exception) { return; }
+
+                var recvPacket = RecvBuffer[..recvResult.ReceivedBytes];
+                OnReceived(recvResult.RemoteEndPoint, recvPacket);
             }
-        }
-
-        private async void RecieveAsync()
-        {
-            if (!IsStarted)
-                return;
-            if (!_RecvBufferPool.GetBuffer(out Memory<byte> BufferSlice, out int BufferId))
-            {
-                await RecieveSerial();
-                RecieveAsync();
-                return;
-            }
-            EndPoint RecvEndpoint = _receiveEndpoint;
-            SocketReceiveFromResult recvResult;
-            try
-            {
-                recvResult = await _Socket.ReceiveFromAsync(BufferSlice, SocketFlags.None, RecvEndpoint);
-            }
-            catch (SocketException) { return; }
-            catch (ObjectDisposedException) { return; }
-
-            _ = Task.Run(() => RecieveAsync());
-
-            var recvPacket = BufferSlice[..recvResult.ReceivedBytes];
-            OnReceived(recvResult.RemoteEndPoint, recvPacket);
-            _RecvBufferPool.ReturnBuffer(BufferId);
-
-        }
-
-        private async Task RecieveSerial()
-        {
-            if (!IsStarted)
-                return;
-            Memory<byte> RecvBuffer = SerialBuffer.AsMemory();
-            EndPoint RecvEndpoint = _receiveEndpoint;
-            SocketReceiveFromResult recvResult;
-            try
-            {
-                recvResult = await _Socket.ReceiveFromAsync(RecvBuffer, SocketFlags.None, RecvEndpoint);
-            }
-            catch (SocketException) { return; }
-            catch (ObjectDisposedException) { return; }
-
-            var recvPacket = RecvBuffer[..recvResult.ReceivedBytes];
-            OnReceived(recvResult.RemoteEndPoint, recvPacket);
         }
 
         /// <summary>
@@ -197,7 +167,7 @@ namespace AsyncUdp
         {
             try
             {
-                await _Socket.SendToAsync(buffer, SocketFlags.None, endpoint);
+                await _Socket.SendToAsync(buffer, SocketFlags.None, endpoint, ServerStopped.Token);
             }
             catch (SocketException) { return; }
             catch (ObjectDisposedException) { return; }
