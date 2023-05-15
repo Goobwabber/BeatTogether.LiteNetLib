@@ -81,10 +81,10 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             _logger.LogInformation($"Latency for '{endPoint}' updated to '{latency}'");
         }
 
-        public override bool ShouldAcceptConnection(EndPoint endPoint, ref SpanBuffer additionalData)
+        public override Task<bool> ShouldAcceptConnection(EndPoint endPoint, MemoryBuffer additionalData)
         {
             _logger.LogInformation($"Connection request received from '{endPoint}'");
-            return true;
+            return Task.FromResult(true);
         }
     }
 }

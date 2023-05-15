@@ -33,10 +33,10 @@ public class TestServer : LiteNetServer, IHostedService
         return Task.CompletedTask;
     }
 
-    public override bool ShouldAcceptConnection(EndPoint endPoint, ref SpanBuffer additionalData)
+    public override Task<bool> ShouldAcceptConnection(EndPoint endPoint, MemoryBuffer additionalData)
     {
         _logger.LogInformation("ShouldAcceptConnection");
-        return true;
+        return Task.FromResult(true);
     }
 
     public Task StopAsync(CancellationToken cancellationToken)
