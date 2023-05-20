@@ -143,6 +143,15 @@ namespace BeatTogether.LiteNetLib
         }
 
         /// <summary>
+        /// Whether the server should accept a connection
+        /// </summary>
+        /// <param name="endPoint">Endpoint connection request was received from</param>
+        /// <param name="additionalData">Additional data sent with the request</param>
+        /// <returns></returns>
+        public virtual async Task<bool> ShouldAcceptConnection(EndPoint endPoint, byte[] additionalData)
+            => false;
+
+        /// <summary>
         /// Called when an endpoint connects
         /// </summary>
         /// <param name="endPoint">Endpoint that connected</param>
@@ -161,15 +170,6 @@ namespace BeatTogether.LiteNetLib
         /// <param name="endPoint">Endpoint latency was updated for</param>
         /// <param name="latency">Latency value in milliseconds</param>
         public virtual void OnLatencyUpdate(EndPoint endPoint, int latency) { }
-
-        /// <summary>
-        /// Whether the server should accept a connection
-        /// </summary>
-        /// <param name="endPoint">Endpoint connection request was received from</param>
-        /// <param name="additionalData">Additional data sent with the request</param>
-        /// <returns></returns>
-        public virtual bool ShouldAcceptConnection(EndPoint endPoint, ref SpanBuffer additionalData)
-            => false;
 
         /// <summary>
         /// Sends a raw serializable packet to an endpoint

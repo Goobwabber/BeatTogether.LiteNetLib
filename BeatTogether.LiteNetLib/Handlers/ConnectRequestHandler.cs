@@ -1,8 +1,8 @@
 using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Util;
-using Krypton.Buffers;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -36,25 +36,41 @@ namespace BeatTogether.LiteNetLib.Handlers
             // TODO: There is some extra logic here in litenetlib that may be needed (NetManager.ProcessConnectRequest)
 
             bool alreadyExists = _server.HasConnected(endPoint);
-            if (alreadyExists || _server.ShouldAcceptConnection(endPoint, ref reader))
+            if (alreadyExists)
             {
-                _logger.LogTrace($"Accepting request from {endPoint}");
+                _logger.LogTrace($"Already connected endpoint connecting again{endPoint}");
                 _server.SendAsync(endPoint, new ConnectAcceptHeader
                 {
                     ConnectTime = packet.ConnectionTime,
                     RequestConnectionNumber = packet.ConnectionNumber,
                     IsReusedPeer = false // TODO: implement 'peer' reusing (probably not necessary)
                 });
-                if (!alreadyExists)
-                    _server.HandleConnect(endPoint, packet.ConnectionTime);
                 return Task.CompletedTask;
+            }
+            byte[] RemainingData = reader.RemainingData.ToArray();
+            NewConnection(endPoint, packet, RemainingData);
+            return Task.CompletedTask;
+        }
+
+        private async void NewConnection(EndPoint endPoint, ConnectRequestHeader packet, byte[] RemainingData)
+        {
+            if(await _server.ShouldAcceptConnection(endPoint, RemainingData))
+            {
+                _logger.LogTrace($"Accepting request from {endPoint}");
+                _server.SendAsync(endPoint, new ConnectAcceptHeader
+                {
+                    ConnectTime = packet.ConnectionTime,
+                    RequestConnectionNumber = packet.ConnectionNumber,
+                    IsReusedPeer = false
+                });
+                _server.HandleConnect(endPoint, packet.ConnectionTime);
+                return;
             }
             _logger.LogTrace($"Rejecting request from {endPoint}");
             _server.SendAsync(endPoint, new DisconnectHeader
             {
                 ConnectionTime = packet.ConnectionTime
             });
-            return Task.CompletedTask;
         }
     }
 }

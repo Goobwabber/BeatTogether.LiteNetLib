@@ -153,7 +153,7 @@ namespace BeatTogether.LiteNetLib.Dispatchers
         {
             if (message.Length > _configuration.MaxPacketSize - 1)
                 return Task.CompletedTask; //TODO should error here, but a check should happen earlier
-            var bufferWriter = new SpanBuffer(stackalloc byte[message.Length + 1], false); //Should be memoryBuffer
+            var bufferWriter = new SpanBuffer(stackalloc byte[message.Length + 1], false);
             _unreliableHeader.WriteTo(ref bufferWriter);
             bufferWriter.WriteBytes(message);
             return InternalSendUnreliable(endPoint, bufferWriter.Data.ToArray());
