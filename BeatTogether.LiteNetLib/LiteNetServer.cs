@@ -148,7 +148,7 @@ namespace BeatTogether.LiteNetLib
         /// <param name="endPoint">Endpoint connection request was received from</param>
         /// <param name="additionalData">Additional data sent with the request</param>
         /// <returns></returns>
-        public virtual async Task<bool> ShouldAcceptConnection(EndPoint endPoint, MemoryBuffer additionalData)
+        public virtual async Task<bool> ShouldAcceptConnection(EndPoint endPoint, byte[] additionalData)
             => false;
 
         /// <summary>

@@ -2,6 +2,7 @@ using BeatTogether.LiteNetLib.Abstractions;
 using BeatTogether.LiteNetLib.Headers;
 using BeatTogether.LiteNetLib.Util;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Net;
 using System.Threading.Tasks;
 
@@ -46,14 +47,14 @@ namespace BeatTogether.LiteNetLib.Handlers
                 });
                 return Task.CompletedTask;
             }
-            MemoryBuffer MemoryReader = new(reader.RemainingData.ToArray());
-            NewConnection(endPoint, packet, MemoryReader);
+            byte[] RemainingData = reader.RemainingData.ToArray();
+            NewConnection(endPoint, packet, RemainingData);
             return Task.CompletedTask;
         }
 
-        private async void NewConnection(EndPoint endPoint, ConnectRequestHeader packet, MemoryBuffer reader)
+        private async void NewConnection(EndPoint endPoint, ConnectRequestHeader packet, byte[] RemainingData)
         {
-            if(await _server.ShouldAcceptConnection(endPoint, reader))
+            if(await _server.ShouldAcceptConnection(endPoint, RemainingData))
             {
                 _logger.LogTrace($"Accepting request from {endPoint}");
                 _server.SendAsync(endPoint, new ConnectAcceptHeader

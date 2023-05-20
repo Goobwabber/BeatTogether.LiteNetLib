@@ -81,7 +81,7 @@ namespace BeatTogether.LiteNetLib.Tests.Utilities
             _logger.LogInformation($"Latency for '{endPoint}' updated to '{latency}'");
         }
 
-        public override Task<bool> ShouldAcceptConnection(EndPoint endPoint, MemoryBuffer additionalData)
+        public override Task<bool> ShouldAcceptConnection(EndPoint endPoint, byte[] additionalData)
         {
             _logger.LogInformation($"Connection request received from '{endPoint}'");
             return Task.FromResult(true);
